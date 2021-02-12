@@ -151,5 +151,91 @@ namespace CodilityLessons
 
             return unpaired;
         }
+
+        public static int FrogJmp (int X, int Y, int D)
+        {
+            int n = 0;
+
+            try
+            {
+                int diff = Y - X;
+                int mod = diff % D;
+                if (mod == 0) 
+                {
+                    n = diff / D;
+                }
+                else
+                {
+                    n = ((diff - mod) / D) + 1;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("FrogJmp: " + ex.Message);
+            }
+
+            return n;
+        }
+
+        public static int PermMissingElem(int[] A)
+        {
+            int missing = 0;
+
+            try
+            {
+                int N = A.Length;
+                var range = Enumerable.Range(1, N+1);
+                var missingElts = range.Except(A);
+                int count = missingElts.Count();
+                if (count == 1)
+                {
+                    missing = missingElts.First();
+                }
+                else if(count > 1)
+                {
+                    Console.WriteLine("Assumption violated. More than one element are missing.");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("PermMissingElem: " + ex.Message);
+            }
+
+            return missing;
+        }
+
+        public static int TapeEquilibrium(int[] A)
+        {
+            int min = 1;
+
+            try
+            {
+                int N = A.Length;
+                var diffs = new List<int>();
+                for(int p=1; p<N; p++)
+                {
+                    int sum1 = 0;
+                    for(int j=0; j<p; j++)
+                    {
+                        sum1 += A[j];
+                    }
+                    int sum2 = 0;
+                    for(int j=p; j<N; j++)
+                    {
+                        sum2 += A[j];
+                    }
+                    int sumP = Math.Abs(sum1 - sum2);
+                    Console.WriteLine($"P: {p}; S: {sumP}");
+                    diffs.Add(sumP);
+                }
+                min = diffs.Min();
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("TapeEquilibrium: " + ex.Message);
+            }
+
+            return min;
+        }
     }
 }

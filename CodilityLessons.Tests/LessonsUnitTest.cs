@@ -86,5 +86,35 @@ namespace CodilityLessons.Tests
 
             Assert.AreEqual(expected, actual);
         }
+
+        [Test]
+        public void TestFrogJmp()
+        {
+            int X = 10, Y = 85, D = 30;
+            int expected = 3;
+            int actual = Lessons.FrogJmp(X, Y, D);
+
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void TestPermMissingElem()
+        {
+            int[] A = new int[] { 2, 3, 1, 5 };
+            int expected = 4;
+            int actual = Lessons.PermMissingElem(A);
+
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void TestTapeEquilibrium()
+        {
+            int[] A = new int[] { 3, 1, 2, 4, 3};
+            int expected = 1;
+            int actual = Lessons.TapeEquilibrium(A);
+
+            Assert.AreEqual(expected, actual);
+        }
     }
 }
