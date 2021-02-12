@@ -51,5 +51,40 @@ namespace CodilityLessons.Tests
                 Assert.AreEqual(expected, actual);
             }
         }
+
+        [Test]
+        public void TestCyclicRotation()
+        {
+            int[] A = new int[] { 3, 8, 9, 7, 6 };
+            int K = 3;
+            var expected = new int[] { 9, 7, 6, 3, 8 };
+            var actual = Lessons.CyclicRotation(A, K);
+
+            Assert.AreEqual(expected, actual);
+
+            A = new int[] { 0, 0, 0 };
+            K = 1;
+            expected = new int[] { 0, 0, 0 };
+            actual = Lessons.CyclicRotation(A, K);
+
+            Assert.AreEqual(expected, actual);
+
+            A = new int[] { 1, 2, 3, 4 };
+            K = 4;
+            expected = new int[] { 1, 2, 3, 4 };
+            actual = Lessons.CyclicRotation(A, K);
+
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void TestOddOccurrencesInArray()
+        {
+            int[] A = new int[] { 9, 3, 9, 3, 9, 7, 9};
+            int expected = 7;
+            int actual = Lessons.OddOccurrencesInArray(A);
+
+            Assert.AreEqual(expected, actual);
+        }
     }
 }
