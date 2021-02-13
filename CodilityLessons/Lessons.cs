@@ -237,5 +237,182 @@ namespace CodilityLessons
 
             return min;
         }
+
+        public delegate bool XIsReachable(int X, int[] A);
+        public static int FrogRiverOne(int X, int[] A)
+        {
+            int earliestTime = -1;
+
+            try
+            {
+                XIsReachable IsXReachable = (x, a) =>
+                {
+                    bool isr = true;
+
+                    try
+                    {
+                        var supportPositions = Enumerable.Range(1, x);
+                        isr = a.Intersect(supportPositions)
+                               .OrderBy(p => p)
+                               .SequenceEqual(supportPositions) ? true : false;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Console.WriteLine("IsXReachable: " + ex.Message);
+                    }
+
+                    return isr;
+                };
+
+                if(IsXReachable(X, A))
+                { 
+                    for(int t=X-1; t<A.Length; t++)
+                    {
+                        var subA = A.Take(t + 1);
+                        if (IsXReachable(X, subA.ToArray()))
+                        {
+                            earliestTime = t;
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("FrogRiverOne: " + ex.Message);
+            }
+
+            return earliestTime;
+        }
+
+        public static int[] MaxCounters(int N, int[] A)
+        {
+            int[] counters = new int[N];
+
+            try
+            {
+                // Init counters
+                counters = counters.Select(i => i = 0).ToArray();
+                var countersRange = Enumerable.Range(1, N);
+                foreach(var a in A)
+                { 
+                    if (countersRange.Contains(a))
+                    {
+                        counters[a-1] += 1; // increment a-th counter
+                    }
+                    else if(a == N + 1) // max all counters
+                    {
+                        int max = counters.Max();
+                        counters = counters.Select(c => c = max).ToArray();
+                    }
+                    else
+                    {
+                        Console.WriteLine("Assumption A[K] is in [1, N+1] broken.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("MaxCounters: " + ex.Message);
+            }
+
+            return counters;
+        }
+
+        public static int MissingInteger(int[] A)
+        {
+            int missing = 1;
+
+            try
+            {
+                int max = A.Max();
+                int min = A.Min();
+                //Console.WriteLine($"Max: {max}; Min: {min}");
+                // Ranges where to search for
+                // .. [1, Min-1] range
+                IEnumerable<int> range = default;
+                if (min <= 0)
+                {
+                    if (max <= 0) // One is the smallest positive missing integer
+                    {
+                        return 1; 
+                    }
+                    else
+                    {
+                        range = Enumerable.Range(1, max-1);
+                    }
+                }
+                else
+                {
+                    range = Enumerable.Range(1, min-1);
+                }
+                //Console.WriteLine($"Range: {range?.Count()}");
+                // search the [1, Min-1] range
+                if (range?.Count() > 0)
+                {
+                    var diff = range.Except(A);
+                    if (diff?.Count() > 0)
+                    {
+                        return diff.Min();
+                    }
+                }
+
+                // .. [Min+1, Max-1] range
+                if(min > 0 && max > 0)
+                {
+                    if (min == max)
+                    {
+                        return max + 1;
+                    }
+                    else
+                    {
+                        range = Enumerable.Range(min + 1, max - 1);
+                        // search the [Min+1, Max-1] range
+                        if (range?.Count() > 0)
+                        {
+                            var diff = range.Except(A);
+                            if (diff?.Count() > 0)
+                            {
+                                return diff.Min();
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("According to the sequence of operations it is impossible that max is <= 0.");
+                }
+
+                // .. [Max, Max+1] range
+                missing = max + 1;
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("MissingInteger: " + ex.Message);
+            }
+
+            return missing;
+        }
+
+        public static int PermCheck(int[] A)
+        {
+            int isPerm = 0;
+
+            try
+            {
+                int N = A.Length;
+                var model = Enumerable.Range(1, N).OrderBy(e => e);
+                if(A.OrderBy(e => e).SequenceEqual(model))
+                {
+                    isPerm = 1;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("PermCheck: " + ex.Message);
+            }
+
+            return isPerm;
+        }
     }
 }
