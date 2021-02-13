@@ -206,29 +206,29 @@ namespace CodilityLessons
 
         public static int TapeEquilibrium(int[] A)
         {
-            int min = 1;
+            int min = 0;
 
             try
             {
                 int N = A.Length;
-                var diffs = new List<int>();
                 for(int p=1; p<N; p++)
                 {
-                    int sum1 = 0;
-                    for(int j=0; j<p; j++)
-                    {
-                        sum1 += A[j];
+                    int sum = 0;
+                    for(int j=0; j<N; j++)
+                    {                       
+                        sum = j >= p ? sum - A[j] : sum + A[j];
                     }
-                    int sum2 = 0;
-                    for(int j=p; j<N; j++)
+                    sum = sum >= 0 ? sum : -sum;
+                    //Console.WriteLine($"P: {p}; S: {sum}");
+                    if (p == 1) // initialize ordering algorithm
                     {
-                        sum2 += A[j];
+                        min = sum;
                     }
-                    int sumP = Math.Abs(sum1 - sum2);
-                    Console.WriteLine($"P: {p}; S: {sumP}");
-                    diffs.Add(sumP);
+                    if(sum < min) // start ordering algorithm
+                    {
+                        min = sum;
+                    }
                 }
-                min = diffs.Min();
             }
             catch (Exception ex)
             {
