@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Linq;
+using System.Collections;
 using System.Collections.Generic;
-using System.Text;
+using System.Text.RegularExpressions;
 
 namespace CodilityLessons
 {
@@ -413,6 +414,413 @@ namespace CodilityLessons
             }
 
             return isPerm;
+        }
+
+        public static int CountDiv(int A, int B, int K)
+        {
+            int counter = 0;
+
+            try
+            {
+                // Ensure first int is divisible by K then apply
+                // Nbre of intervals == Nbre of int divisible by K (+1 depends on the divisibility of B by K)
+                int firstInt = A;
+                if(A < K && A > 0)
+                {
+                    firstInt = K;
+                }
+                else
+                {
+                    int mod = A % K;
+                    firstInt = mod == 0 ? A : A + K - mod;
+                }
+                // Ensure first int is <= B
+                int KLongIntervals = 0;
+                if (firstInt <= B)
+                {
+                    KLongIntervals = (int)Math.Ceiling((double)(B - firstInt) / K);
+                    if(KLongIntervals == 0) // Either B and firstInt are 0 or they are equal
+                    {
+                        return 1;
+                    }
+                }
+                if(KLongIntervals > 0)
+                {
+                    counter = B % K == 0 ? KLongIntervals + 1 : KLongIntervals;
+                }
+                else
+                {
+                    counter = KLongIntervals;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("CountDiv: " + ex.Message);
+            }
+
+            return counter;
+        }
+
+        public static int[] GenomicRangeQuery(string S, int[] P, int[] Q)
+        {
+            int[] genomic = null;
+
+            try
+            {
+                Dictionary<string, int> impacts = new Dictionary<string, int>
+                {
+                    {"A", 1 }, {"C", 2}, {"G", 3}, {"T", 4}
+                };
+                genomic = P.Select((p, idx) => {
+                    int minImpact = 0;
+                    string genome = S.Substring(p, Q[idx]-p+1);
+                    //Console.WriteLine("Genome: " + genome);
+                    
+                    minImpact = genome.Select(g =>
+                    {
+                        int impact = 0;
+                        if(g == 'A')
+                        {
+                            impact = impacts["A"];
+                        }
+                        else if(g == 'C')
+                        {
+                            impact = impacts["C"];
+                        }
+                        else if (g == 'G')
+                        {
+                            impact = impacts["G"];
+                        }
+                        else if (g == 'T')
+                        {
+                            impact = impacts["T"];
+                        }
+
+                        return impact;
+                    }).Min();
+                    
+                    return minImpact;
+                }).ToArray();
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("GenomicRangeQuery: " + ex.Message);
+            }
+
+            return genomic;
+        }
+
+        public static int MinAvgTwoSlice(int[] A)
+        {
+            int minAvgPos = 0;
+
+            try
+            {
+                int N = A.Length;
+                decimal minAvgDb = 0;
+                for(int p=0; p<N-1; p++)
+                {
+                    decimal prevSum = 0;
+                    for(int q=p+1; q<N; q++)
+                    {
+                        decimal nextOperand = 0;
+                        if (prevSum == 0) // We are at q=p+1; i.e., we have two elts to compute average for
+                        {
+                            nextOperand = A[p] + A[q];
+                        }
+                        else // We have one elt to add to the previous sum
+                        {
+                            nextOperand = A[q];
+                        }
+                        int nElts = q - p + 1;
+                        decimal sum = prevSum + nextOperand;
+                        prevSum = sum;
+                        decimal avg = sum / nElts;
+                        //Console.WriteLine($"({p}, {q}) => {avg}");
+                        if (p == 0)// Init
+                        {
+                            minAvgDb = avg;
+                            minAvgPos = p;
+                        }
+                        if (minAvgDb > avg) // finding min
+                        {
+                            minAvgDb = avg;
+                            minAvgPos = p;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("MinAvgTwoSlice: " + ex.Message);
+            }
+
+            return minAvgPos;
+        }
+
+        /// <summary>
+        /// Challenge Jan 2021 at Codility (https://app.codility.com/programmers/challenges/)
+        /// </summary>
+        /// <param name="A"> Array of integer number of black squares per column </param>
+        /// <returns>Side length of biggest black square </returns>
+        public static int BiggestBlackSquareLength(int[] A)
+        {
+            int biggest = 0;
+
+            try
+            {
+                int N = A.Length;
+                for(int i=0; i<N; i++)
+                {
+                    int expectedL = A[i];
+                    for (int k = expectedL; k > 0; k--)
+                    {
+                        int counter = 0;
+                        int bound = i + k;
+                        if (bound <= N)
+                        {
+                            for (int j = i + 1; j < bound; j++)
+                            {
+                                if (A[j] >= k) // May lead to a square
+                                {
+                                    counter += 1;
+                                }
+                                else
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                        Console.WriteLine($"ExpectedL: {k} [{counter}]");
+                        if (counter == (k - 1)) // We've got a square
+                        {
+                            if (biggest < k) // Find max
+                            {
+                                biggest = k;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("BiggestBlackSquareLength: " + ex.Message);
+            }
+
+            return biggest;
+        }
+
+        public static int PassingCars(int[] A)
+        {
+            int nPassingCars = 0;
+
+            try
+            {
+                int N = A.Length;
+                for (int P=0; P<N-1; P++)
+                {
+                    if (A[P] != 0)
+                    {
+                        continue;
+                    }
+                    for(int Q=P+1; Q<N; Q++)
+                    {
+                        if(A[Q] == 1)
+                        {
+                            nPassingCars += 1;
+                        }
+                    }
+                }
+
+                const int nMax = 1000000000;
+                if(nPassingCars > nMax)
+                {
+                    nPassingCars = -1;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("PassingCars: " + ex.Message);
+            }
+
+            return nPassingCars;
+        }
+
+        public delegate IDictionary<int, int> IsPossiblyNested(string s, string opening, string closing);
+        public delegate string ReplaceCharacters(string s, int[] indices, char c);
+        public static int Brackets(string S)
+        {
+            int properlyNested = 0;
+
+            try
+            {
+                if(S == null)
+                {
+                    Console.WriteLine("Unhandled 'case': S is null.");
+                    return properlyNested;
+                }
+                if( S == "")
+                {
+                    properlyNested = 1;
+                }
+                else
+                {
+                    ReplaceCharacters ReplaceOpeningAndClosing = (s, indices, c) =>
+                    {
+                        string rs = s;
+
+                        try
+                        {
+                            rs = new string(
+                                rs.Select((cc, kk) =>
+                                {
+                                    char newChar = cc;
+                                    foreach (int ijk in indices)
+                                    {
+                                        if (kk == ijk)
+                                        {
+                                            newChar = c;
+                                        }
+                                    }
+
+                                    return newChar;
+                                }
+                            ).ToArray());
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Console.WriteLine("Brackets:ReplaceOpeningAndClosing " + ex.Message);
+                        }
+
+                        return rs;
+                    };
+
+                    /// returns (opening index, closing index) dictionary
+                    /// If no partner is available -1 is as value or a negative key
+                    IsPossiblyNested PossiblyNested = (ss, opening, closing) => 
+                    {
+                        IDictionary<int, int> partners = new Dictionary<int, int>();
+
+                        try
+                        {
+                            string s = ss;
+                            Stack<int> openings = new Stack<int>();
+                            IList<int> closings = new List<int>();
+                            var matches = Regex.Matches(s, Regex.Escape(opening));
+                            foreach(Match m in matches)
+                            {
+                                openings.Push(m.Index);
+                            }
+                            
+                            matches = Regex.Matches(s, Regex.Escape(closing));
+                            foreach(Match m in matches)
+                            {
+                                closings.Add(m.Index);
+                            }
+
+                            int count = openings.Count;
+                            for(int i=0; i<count; i++) 
+                            {
+                                if(openings.Count == 0)
+                                {
+                                    break;
+                                }
+                                int idx = openings.Pop();
+                                foreach (int j in closings)
+                                {
+                                    if (j > idx)
+                                    {
+                                        string u = s.Substring(idx + 1, j-idx-1);
+                                        //Console.WriteLine($"{idx} #{u}# {j} => $${s}$$");
+                                        if (!string.IsNullOrEmpty(u))
+                                        {
+                                            var m = Regex.Match(u, Regex.Escape(opening));
+                                            var mm = Regex.Match(u, Regex.Escape(closing));
+                                            if (!m.Success && !mm.Success) 
+                                            {
+                                                if (1 == Brackets(u))
+                                                {
+                                                    partners.Add(idx, j);
+                                                    int[] indices = new int[] { idx, j };
+                                                    s = ReplaceOpeningAndClosing(s, indices, ' ');
+                                                    //Console.WriteLine("String: " + s);
+                                                    closings.Remove(j); // It makes sense due to the next break
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            partners.Add(idx, j);
+                                            int[] indices = new int[] { idx, j };
+                                            s = ReplaceOpeningAndClosing(s, indices, ' ');
+                                            //Console.WriteLine("String: " + s);
+                                            closings.Remove(j); // It makes sense due to the next break
+                                            break;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        //Console.WriteLine($"{idx} -- {j} => $${s}$$");
+                                    }
+                                }
+                                if (!partners.ContainsKey(idx))
+                                {
+                                    partners.Add(idx, -1);
+                                    int[] indices = new int[] { idx };
+                                    s = ReplaceOpeningAndClosing(s, indices, ' ');
+                                    //Console.WriteLine("String: " + s);
+                                }
+                            }
+                            // Check closings
+                            int cki = -1;
+                            foreach(int j in closings)
+                            {
+                                if (!partners.Values.Contains(j))
+                                {
+                                    partners.Add(cki, j);
+                                    cki -= 1;
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Console.WriteLine("Brackets:PossiblyNested " + ex.Message);
+                        }
+
+                        return partners;
+                    };
+
+                    IDictionary<string, string> characters = new Dictionary<string, string>();
+                    characters.Add("{", "}");
+                    characters.Add("[", "]");
+                    characters.Add("(", ")");
+                    properlyNested = 1;
+                    foreach (var cpk in characters)
+                    {
+                        var partnersDico = PossiblyNested(S, cpk.Key, cpk.Value);
+                        foreach (var pk in partnersDico)
+                        {
+                            //Console.WriteLine($"Opening&{cpk.Key}& => Closing&{cpk.Value}&: {pk.Key} => {pk.Value} $${S}$$");
+                            if (pk.Value == -1 || pk.Key < 0)
+                            {
+                                properlyNested = 0;
+                                break;
+                            }
+                        }
+                        if(0 == properlyNested)
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("Brackets: " + ex.Message);
+            }
+
+            return properlyNested;
         }
     }
 }

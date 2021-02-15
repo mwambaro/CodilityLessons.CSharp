@@ -202,5 +202,121 @@ namespace CodilityLessons.Tests
 
             Assert.AreEqual(expected, actual);
         }
+
+        [Test]
+        public void TestCountDiv()
+        {
+            int A = 6, B = 11, K = 2;
+            int expected = 3;
+            int actual = Lessons.CountDiv(A, B, K);
+
+            Assert.AreEqual(expected, actual);
+
+            A = 11; B = 345; K = 17;
+            expected = 20;
+            actual = Lessons.CountDiv(A, B, K);
+
+            Assert.AreEqual(expected, actual);
+
+            A = 0; B = 0; K = 11;
+            expected = 1;
+            actual = Lessons.CountDiv(A, B, K);
+
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void TestGenomicRangeQuery()
+        {
+            string S = "CAGCCTA";
+            int[] P = new int[] { 2, 5, 0 };
+            int[] Q = new int[] { 4, 5, 6 };
+            int[] expected = new int[] { 2, 4, 1 };
+            int[] actual = Lessons.GenomicRangeQuery(S, P, Q);
+
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void TestMinAvgTwoSlice()
+        {
+            int[] A = new int[] { 4, 2, 2, 5, 1, 5, 8 };
+            int expected = 1;
+            int actual = Lessons.MinAvgTwoSlice(A);
+
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void TestBiggestBlackSquareLength()
+        {
+            int[] A = new int[] { 1, 2, 5, 3, 1, 3 };
+            int expected = 2;
+            int actual = Lessons.BiggestBlackSquareLength(A);
+            Assert.AreEqual(expected, actual);
+            
+            A = new int[] { 3, 3, 3, 5, 4 };
+            expected = 3;
+            actual = Lessons.BiggestBlackSquareLength(A);
+            Assert.AreEqual(expected, actual);
+            
+            A = new int[] { 6, 5, 5, 6, 2, 2 };
+            expected = 4;
+            actual = Lessons.BiggestBlackSquareLength(A);
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void TestPassingCars()
+        {
+            int[] A = new int[] { 0, 1, 0, 1, 1 };
+            int expected = 5;
+            int actual = Lessons.PassingCars(A);
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void TestBrackets()
+        {
+            string S = "";
+            int expected = 1;
+            int actual = Lessons.Brackets(S);
+            Assert.AreEqual(expected, actual);
+
+            S = "(lemme talk to them)";
+            expected = 1;
+            actual = Lessons.Brackets(S);
+            Assert.AreEqual(expected, actual);
+
+            S = "{Driving safely} is enclose in [curly braces ahead]";
+            expected = 1;
+            actual = Lessons.Brackets(S);
+            Assert.AreEqual(expected, actual);
+
+            S = "{[()()]}";
+            expected = 1;
+            actual = Lessons.Brackets(S);
+            Assert.AreEqual(expected, actual);
+
+            S = "([)()]";
+            expected = 0;
+            actual = Lessons.Brackets(S);
+            Assert.AreEqual(expected, actual);
+
+            S = "{braces} plus (parantheses) minus [square-brackets]";
+            expected = 1;
+            actual = Lessons.Brackets(S);
+            Assert.AreEqual(expected, actual);
+
+            S = "{braces} plus ])}";
+            expected = 0;
+            actual = Lessons.Brackets(S);
+            Assert.AreEqual(expected, actual);
+
+            S = "({{({}[]{})}}[]{})";
+            expected = 1;
+            actual = Lessons.Brackets(S);
+            Assert.AreEqual(expected, actual);
+        }
     }
 }
