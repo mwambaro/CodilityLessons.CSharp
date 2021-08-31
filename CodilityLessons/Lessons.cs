@@ -646,7 +646,7 @@ namespace CodilityLessons
             return nPassingCars;
         }
 
-        public delegate IDictionary<int, int> IsPossiblyNested(string s, string opening, string closing);
+        public delegate IDictionary<int, int> IsPossiblyNested(string s);
         public delegate string ReplaceCharacters(string s, int[] indices, char c);
         public static int Brackets(string S)
         {
@@ -697,26 +697,33 @@ namespace CodilityLessons
 
                     /// returns (opening index, closing index) dictionary
                     /// If no partner is available -1 is as value or a negative key
-                    IsPossiblyNested PossiblyNested = (ss, opening, closing) => 
+                    IsPossiblyNested PossiblyNested = (ss) => 
                     {
                         IDictionary<int, int> partners = new Dictionary<int, int>();
 
                         try
                         {
-                            string s = ss;
+                            string s = (string)ss.Clone(); // new string(ss);
+                            
                             Stack<int> openings = new Stack<int>();
                             IList<int> closings = new List<int>();
-                            var matches = Regex.Matches(s, Regex.Escape(opening));
-                            foreach(Match m in matches)
+                            var matches = Regex.Matches(s, @"[\{\[\(\}\]\)]");
+                            foreach (Match m in matches)
                             {
-                                openings.Push(m.Index);
+                                int index = m.Index;
+                                switch (s[index])
+                                {
+                                    case '{': openings.Push(index); break;
+                                    case '[': openings.Push(index); break;
+                                    case '(': openings.Push(index); break;
+                                    case '}': closings.Add(index); break;
+                                    case ']': closings.Add(index); break;
+                                    case ')': closings.Add(index); break;
+                                }
                             }
-                            
-                            matches = Regex.Matches(s, Regex.Escape(closing));
-                            foreach(Match m in matches)
-                            {
-                                closings.Add(m.Index);
-                            }
+
+                            //foreach (var o in openings) Console.WriteLine($"{ss[o]} => {ss}");
+                            //foreach (var c in closings) Console.WriteLine($"{ss[c]} => {ss}");
 
                             int count = openings.Count;
                             for(int i=0; i<count; i++) 
@@ -726,9 +733,18 @@ namespace CodilityLessons
                                     break;
                                 }
                                 int idx = openings.Pop();
+                                string opening = ss[idx].ToString();
                                 foreach (int j in closings)
                                 {
-                                    if (j > idx)
+                                    string closing = null;
+                                    switch (ss[idx])
+                                    {
+                                        case '{': closing = "}"; break;
+                                        case '[': closing = "]"; break;
+                                        case '(': closing = ")"; break;
+                                    }
+                                    bool theyMatch = ss[j].ToString() == closing;
+                                    if (j > idx && theyMatch)
                                     {
                                         string u = s.Substring(idx + 1, j-idx-1);
                                         //Console.WriteLine($"{idx} #{u}# {j} => $${s}$$");
@@ -791,25 +807,14 @@ namespace CodilityLessons
                         return partners;
                     };
 
-                    IDictionary<string, string> characters = new Dictionary<string, string>();
-                    characters.Add("{", "}");
-                    characters.Add("[", "]");
-                    characters.Add("(", ")");
+                    var partnersDico = PossiblyNested(S);
                     properlyNested = 1;
-                    foreach (var cpk in characters)
+                    foreach (var pk in partnersDico)
                     {
-                        var partnersDico = PossiblyNested(S, cpk.Key, cpk.Value);
-                        foreach (var pk in partnersDico)
+                        //Console.WriteLine($"Opening => Closing: {pk.Key} => {pk.Value} $${S}$$");
+                        if (pk.Value == -1 || pk.Key < 0)
                         {
-                            //Console.WriteLine($"Opening&{cpk.Key}& => Closing&{cpk.Value}&: {pk.Key} => {pk.Value} $${S}$$");
-                            if (pk.Value == -1 || pk.Key < 0)
-                            {
-                                properlyNested = 0;
-                                break;
-                            }
-                        }
-                        if(0 == properlyNested)
-                        {
+                            properlyNested = 0;
                             break;
                         }
                     }
@@ -821,6 +826,250 @@ namespace CodilityLessons
             }
 
             return properlyNested;
+        }
+
+        /// <summary>
+        /// HankerRank basic problem solving test.
+        /// </summary>
+        /// <param name="customers"></param>
+        /// <returns></returns>
+        public static List<string> MostActive(List<string> customers)
+        {
+            List<string> mActive = new List<string>();
+
+            try
+            {
+                int N = customers.Count;
+                decimal threshold = 5;
+                var groups = customers.GroupBy(trade => trade);
+                foreach(var g in groups)
+                {
+                    decimal activity = (g.Count() * 100) / N;
+                    if(activity >= threshold)
+                    {
+                        mActive.Add(g.Key);
+                    }
+                }
+
+                mActive = mActive.OrderBy(s => s).ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("MostActive: " + ex.Message);
+            }
+
+            return mActive;
+        }
+
+        /// <summary>
+        /// HankerRank basic problem solving test.
+        /// </summary>
+        /// <param name="dictionary"></param>
+        /// <param name="query"></param>
+        /// <returns></returns>
+        public static List<int> StringAnagram(List<string> dictionary, List<string> query)
+        {
+            List<int> occurrences = new List<int>();
+
+            try
+            {
+                foreach(string q in query)
+                {
+                    int counter = 0;
+                    var qChars = q.Select(p => {
+                        return (int)p;
+                    }).Sum();
+                    foreach(string d in dictionary)
+                    {
+                        if(d.Length != q.Length)
+                        {
+                            continue;
+                        }
+                        var dChars = d.Select(pp => {
+                            return (int)pp;
+                        }).Sum(); ;
+                        if (qChars == dChars)
+                        {
+                            counter += 1;
+                        }
+                    }
+
+                    occurrences.Add(counter);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("StringAnagram: " + ex.Message);
+            }
+
+            return occurrences;
+        }
+
+        public static string SuggestedContact(string[] A, string[] B, string P)
+        {
+            string suggested = "NO CONTACT";
+
+            try
+            {
+                var contactNames = B.Select((n, i) => {
+                    string name = "";
+                    var m = Regex.Match(n, Regex.Escape(P));
+                    if (m.Success)
+                    {
+                        name = A[i];
+                    }
+
+                    return name;
+                }).Where(n => !string.IsNullOrEmpty(n));
+                if(contactNames.Count() > 0)
+                {
+                    suggested = contactNames.OrderBy(c => c).First();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("SuggestedContact: " + ex.Message);
+            }
+
+            return suggested;
+        }
+
+        public static string ReformatPhoneNumber(string S)
+        {
+            string reformatted = "";
+
+            try
+            {
+                string triplet = "";
+                IList<string> triplets = new List<string>();
+                foreach(char c in S)
+                {
+                    string s = c.ToString();
+                    if(Regex.IsMatch(s, @"[0-9]"))
+                    {
+                        triplet += s;
+                        if(triplet.Length == 3)
+                        {
+                            triplets.Add(triplet);
+                            triplet = "";
+                        }
+                    }
+                }
+                if (!string.IsNullOrEmpty(triplet))
+                {
+                    if(triplet.Length < 2)
+                    {
+                        string last = triplets.Last();
+                        triplets.RemoveAt(triplets.Count-1);
+                        string beforeLast = last.Substring(0, 2);
+                        triplets.Add(beforeLast);
+                        last = last.Last().ToString() + triplet;
+                        triplets.Add(last);
+                    }
+                    else
+                    {
+                        triplets.Add(triplet);
+                    }
+                }
+                for(int j=0; j<triplets.Count; j++)
+                {
+                    if (j == 0)
+                    {
+                        reformatted = triplets[j];
+                    }
+                    else
+                    {
+                        reformatted += $"-{triplets[j]}";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("ReformatPhoneNumber: " + ex.Message);
+            }
+
+            return reformatted;
+        }
+
+        public static bool ContainsVertex(int N, int[] A, int[] B)
+        {
+            bool contains = false;
+
+            try
+            {
+                int M = A.Length;
+                int bM = B.Length;
+                for (int i=0; i<M; i++)
+                {
+                    if(A[i] != 1)
+                    {
+                        continue;
+                    }
+                    for (int j = 0; j < bM; j++)
+                    {
+                        if (A[i] == 1 && B[j] == N)
+                        {
+                            contains = true;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("ContainsVertex: " + ex.Message);
+            }
+
+            return contains;
+        }
+
+        public static int MaxPairs(List<int> skillLevel, int minDiff)
+        {
+            int max = 0;
+
+            try
+            {
+                int N = skillLevel.Count;
+                for (int i=0; i<N-1; i++)
+                {
+                    for (int j=i+1; j<N; j++)
+                    {                        
+                        if(skillLevel[j] == -1)// paired
+                        {
+                            continue;
+                        }
+                        int diff = Math.Abs(skillLevel[i] - skillLevel[j]);
+                        Console.WriteLine($"({skillLevel[i]}, {skillLevel[j]}) => {diff}");
+                        if(diff >= minDiff)
+                        {
+                            max += 1;
+                            skillLevel[i] = -1;
+                            skillLevel[j] = -1;
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine("MaxPairs: " + ex.Message);
+            }
+
+            return max;
+        }
+
+        static int AbsDistinct (int[] A)
+        {
+            int n = 0;
+
+            try
+            { 
+            }
+            catch(Exception ex)
+            {
+                System.Console.WriteLine("MaxPairs: " + ex.Message);
+            }
+
+            return n;
         }
     }
 }

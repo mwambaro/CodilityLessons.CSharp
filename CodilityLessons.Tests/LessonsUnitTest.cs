@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Collections.Generic;
 
 namespace CodilityLessons.Tests
 {
@@ -316,6 +317,56 @@ namespace CodilityLessons.Tests
             S = "({{({}[]{})}}[]{})";
             expected = 1;
             actual = Lessons.Brackets(S);
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void TestMostActive()
+        {
+            List<string> customers = new List<string>
+            {
+                ""
+            };
+            List<string> expected = new List<string>
+            { 
+                ""
+            };
+            List<string> actual = Lessons.MostActive(customers);
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void TestStringAnagram()
+        {
+            List<string> dictionary = new List<string> 
+            { 
+                ""
+            };
+            List<string> query = new List<string>
+            {
+                ""
+            };
+            List<int> expected = new List<int> { };
+            List<int> actual = Lessons.StringAnagram(dictionary, query);
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void TestReformatPhoneNumber()
+        {
+            string S = "00-44  48 5555 8361";
+            string expected = "004-448-555-583-61";
+            string actual = Lessons.ReformatPhoneNumber(S);
+            Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void TestMaxPairs()
+        {
+            List<int> skillLevel = new List<int> { 1, 2, 3, 4, 5, 6 };
+            int min = 4;
+            int expected = 2;
+            int actual = Lessons.MaxPairs(skillLevel, min);
             Assert.AreEqual(expected, actual);
         }
     }

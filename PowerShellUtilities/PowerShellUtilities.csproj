@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Hone-SaveHelpCapabilities.ps1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Hone-SaveHelpCapabilities.ps1" />
+  </ItemGroup>
+
+</Project>
