@@ -112,6 +112,10 @@ function Collect-ModemServiceCommands
 
     $jobBlock = {
         $MyLogFile = Make-LogFileName
+        $TimerInterval = 10000
+        $curCount = 0
+        $prevCount = 0
+        $TimerEvent = $null
         $cmd = 0
         
         $jbBreak = $true
@@ -140,9 +144,26 @@ function Collect-ModemServiceCommands
                         Write-Host -NoNewline "] [Int Max: $IntMax]"
                         Write-Host ""
                         
-                        ModemServiceCommands.Add($cmd)
-                        $ModemServiceCommandsJson = ModemServiceCommands | ConvertTo-Json -Compress
-                        [System.IO.File]::WriteAllText($ModemServiceCommandsFile, $ModemServiceCommandsJson)
+                        $ModemServiceCommands.Add($cmd)
+                        $curCount = $ModemServiceCommands.Count
+                        if($curCount -EQ 1)
+                        {
+                            $TimerEvent = Subscribe-ToTimerEvent -TimerEventAction {
+                                if($true)
+                                {
+                                    $Sapi.Speak("Serializing $($curCount) modem commands to file.")
+                                    $ModemServiceCommandsJson = $ModemServiceCommands | ConvertTo-Json -Compress
+                                    [System.IO.File]::WriteAllText($ModemServiceCommandsFile, $ModemServiceCommandsJson)
+                                }
+                            }
+                            if($TimerEvent)
+                            {
+                                $TimerEvent.Enabled = $true
+                                $TimerEvent.Interval = $TimerInterval
+                                $TimerEvent.Autoreset = $true
+                            }
+                        }
+                        $prevCount = $curCount
                     }
                     catch
                     {

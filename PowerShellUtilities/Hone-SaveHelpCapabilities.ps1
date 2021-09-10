@@ -1,5 +1,6 @@
 ﻿##################################################################################
 ##  Hone-SaveHelpCapabilities.ps1
+##      
 ##      1. Write a task that lists all modules that need help info and serialize 
 ##         the collection to a file so it can natively be loaded into PS session.
 ##      2. 
@@ -8,19 +9,29 @@
 
 param(
     [Parameter(ValueFromPipeline)]
-    [string]$ModulesJsonFile=""
+    [System.String]$PSModuleInfoObjectsSerializationFullPath=""
 )
 
-if([string]::IsNullOrEmpty($ModulesJsonFile))
+if([string]::IsNullOrEmpty($PSModuleInfoObjectsSerializationFullPath))
 {
-    $ModulesJsonFile = Join-Path $Home "PSModulesJsonFile.json"
+    $PSModuleInfoObjectsSerializationFullPath = Join-Path $Home "PSModuleInfoObjectsFile.xml"
 }
 
-function Serialize-ModulesToFile
+function Serialize-PSModuleInfoObjects
 {
-    Write-Host "Serializing PS module names to "
-    Write-Host -NoNewline "[$ModulesJsonFile] ... "
+    param(
+        [Parameter(ValueFromPipeline)]
+        [System.String]$FullPathName=""
+    )
+    if([System.String]::IsNullOrEmpty($FullPathName))
+    {
+        $FullPathName = $PSModuleInfoObjectsSerializationFullPath
+    }
 
+    Write-Host "Serializing PS module info objects to "
+    Write-Host -NoNewline "[$FullPathName] ... "
+    
+    ## Fetch module names
     $Modules = New-Object System.Collections.ArrayList
     Get-Module -All -ListAvailable | ForEach-Object {
         if(-NOT $Modules.Contains($_.Name))
@@ -28,16 +39,16 @@ function Serialize-ModulesToFile
             $Modules.Add($_.Name)
         }
     }
-    $ModulesJson = $Modules | Sort-Object | ConvertTo-Json -Compress
-
-    [System.IO.File]::WriteAllText($ModulesJsonFile, $ModulesJson)
+    
+    $PSModuleInfo = Get-Module -Name $Modules -All -ListAvailable
+    Export-CliXml -Path $FullPathName -InputObject $PSModuleInfo
 
     Write-Host -NoNewline -ForegroundColor Green "OK"
     Write-Host -NoNewline " ["
     Write-Host -NoNewline -ForegroundColor Magenta "$($Modules.Count) modules"
     Write-Host -NoNewline "]"
 
-    $ModulesJsonFile
+    $FullPathName
 }
 
-$fileName = Serialize-ModulesToFile
+$fileName = Serialize-PSModuleInfoObjects
