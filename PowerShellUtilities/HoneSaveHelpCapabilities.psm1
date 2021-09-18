@@ -12,9 +12,11 @@ param(
     [System.String]$PSModuleInfoObjectsSerializationFullPath=""
 )
 
+$SerializationFileName = "PSModuleInfoObjectsFile.xml"
+
 if([string]::IsNullOrEmpty($PSModuleInfoObjectsSerializationFullPath))
 {
-    $PSModuleInfoObjectsSerializationFullPath = Join-Path $Home "PSModuleInfoObjectsFile.xml"
+    $PSModuleInfoObjectsSerializationFullPath = Join-Path $Home $SerializationFileName
 }
 
 function Serialize-PSModuleInfoObjects
@@ -27,6 +29,8 @@ function Serialize-PSModuleInfoObjects
     {
         $FullPathName = $PSModuleInfoObjectsSerializationFullPath
     }
+
+    $start = Get-Date
 
     Write-Host "Serializing PS module info objects to "
     Write-Host -NoNewline "[$FullPathName] ... "
@@ -48,7 +52,7 @@ function Serialize-PSModuleInfoObjects
     Write-Host -NoNewline -ForegroundColor Magenta "$($Modules.Count) modules"
     Write-Host -NoNewline "]"
 
+    Write-Host "Done. Elapsed: $((Get-Date).Subtract($start).TotalMilliseconds) ms"
+
     $FullPathName
 }
-
-$fileName = Serialize-PSModuleInfoObjects

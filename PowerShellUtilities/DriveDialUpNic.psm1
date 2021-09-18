@@ -112,6 +112,7 @@ function Collect-ModemServiceCommands
 
     $jobBlock = {
         $MyLogFile = Make-LogFileName
+        $writer = New-Object System.IO.StreamWriter $ModemServiceCommandsFile
         $TimerInterval = 10000
         $curCount = 0
         $prevCount = 0
@@ -153,7 +154,7 @@ function Collect-ModemServiceCommands
                                 {
                                     $Sapi.Speak("Serializing $($curCount) modem commands to file.")
                                     $ModemServiceCommandsJson = $ModemServiceCommands | ConvertTo-Json -Compress
-                                    [System.IO.File]::WriteAllText($ModemServiceCommandsFile, $ModemServiceCommandsJson)
+                                    $writer.WriteLine($ModemServiceCommandsJson)
                                 }
                             }
                             if($TimerEvent)
@@ -173,8 +174,6 @@ function Collect-ModemServiceCommands
                         Write-Host -NoNewline "] [Int Max: $IntMax]"
                         Write-Host ""
                     }
-                    
-                    #[System.IO.File]::AppendAllText($MyLogFile, $logLine)
 
                     if($cmd -GT 0 -AND $cmd -EQ $IntMax)
                     {
@@ -194,15 +193,15 @@ function Collect-ModemServiceCommands
                         else 
                         { $cmd -= 1}
                     }
-                    #sleep 1
                 }
             }
             else
             {
-                #Write-Output -ForegroundColor Red "No $($ModemDeviceClass) service found." >> $MyLogFile
                 sleep 1
             }
         }
+
+        $writer.Close()
 
         $verbose = "Job '$($name)' is finished."
         $TimerEvent = Subscribe-ToTimerEvent -TimerEventAction {
@@ -256,8 +255,9 @@ function Exec-ModemServiceCommands
     
     $jobBlock = {
         $MyLogFile = Make-LogFileName
+        $reader = New-Object System.IO.StreamReader $ModemServiceCommandsFile
         $oldLength = 0
-        $ModemServiceCommandsJson = [System.IO.File]::ReadAllText($ModemServiceCommandsFile)
+        $ModemServiceCommandsJson = $reader.ReadToEnd()
         $ModemServiceCommands = $ModemServiceCommandsJson | ConvertFrom-Json
     
         while($true)
@@ -291,8 +291,6 @@ function Exec-ModemServiceCommands
                         Write-Host -NoNewline -ForegroundColor Green "OK"
                         Write-Host -NoNewline "]"
                         Write-Host ""
-
-                        #[System.IO.File]::AppendAllText($MyLogFile, $logLine)
                         
                         $idx += 1
                         sleep 1
@@ -303,6 +301,8 @@ function Exec-ModemServiceCommands
 
             sleep 1
         }
+
+        $reader.Close()
     }
     
     $CommandsExecJob = $null

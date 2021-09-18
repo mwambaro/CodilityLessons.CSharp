@@ -6,11 +6,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Hone-SaveHelpCapabilities.ps1" />
+    <None Remove="HoneSaveHelpCapabilities.psm1" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="Hone-SaveHelpCapabilities.ps1" />
+    <Compile Include="HoneSaveHelpCapabilities.psm1" />
   </ItemGroup>
 
 </Project>
