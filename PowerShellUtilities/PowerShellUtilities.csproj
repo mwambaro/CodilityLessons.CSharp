@@ -5,12 +5,4 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
-  <ItemGroup>
-    <None Remove="HoneSaveHelpCapabilities.psm1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="HoneSaveHelpCapabilities.psm1" />
-  </ItemGroup>
-
 </Project>

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace PowerShellUtilities
 {
-    class HoneSaveHelpCapabilities
+    class HarnessSourceCodeReview
     {
     }
 }

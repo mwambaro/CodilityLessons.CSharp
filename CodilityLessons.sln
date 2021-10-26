@@ -9,8 +9,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodilityLessons.Tests", "Co
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PowerShellUtilities", "PowerShellUtilities\PowerShellUtilities.csproj", "{E65F88B3-1F38-4D18-B383-6D03B730AB54}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MvcMovie", "MvcMovie\MvcMovie.csproj", "{E7382043-7776-4F7B-89CD-EA56D9A0E618}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,10 +27,6 @@ Global
 		{E65F88B3-1F38-4D18-B383-6D03B730AB54}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E65F88B3-1F38-4D18-B383-6D03B730AB54}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E65F88B3-1F38-4D18-B383-6D03B730AB54}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E7382043-7776-4F7B-89CD-EA56D9A0E618}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E7382043-7776-4F7B-89CD-EA56D9A0E618}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E7382043-7776-4F7B-89CD-EA56D9A0E618}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E7382043-7776-4F7B-89CD-EA56D9A0E618}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
