@@ -1,5 +1,6 @@
 ﻿
-param(
+param
+(
 	[parameter(ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
 	[Switch]$Run
 )
@@ -9,54 +10,57 @@ $Script:EntryCount = 1
 $Script:Activity = "Listing PowerShell Source Files For Display in Code Editor"
 
 
-#########################################################
-# Display-ProgressBar is a helper function used to 
-# used to display progress message. 
-#########################################################
+# <summary> Displays progress bar for an activity given current entry count </summary>
+# <param name="Activity"> Activity name or id for which we need progress bar </param>
+# <param name="Status"> Activity progression status information </param>
+# <param name="CurrentEntryCount"> The current progression point in entries count </param>
+# <param name="TotalNumberOfEntries"> The total number of entries. You can go beyond the defualt 100 </param>
 Function Display-ProgressBar
 {
-    param 
+    [CmdLetBinding()]
+	param 
     (
-        [string] $cmdletName,
-        [string] $status,
-        [double] $previousSegmentWeight,
-        [double] $currentSegmentWeight,
-        [int]    $totalNumberofEntries,
-        [int]    $currentEntryCount
+        [parameter(Mandatory=$false, Position=1)]
+		[ValidateNotNullOrEmpty()]
+		[string] $Activity,
+		[parameter(Mandatory=$false, Position=2)]
+		[ValidateNotNullOrEmpty()]
+        [string] $Status,
+		[parameter(Mandatory=$false, Position=3)]
+        [int]    $CurrentEntryCount,
+		[parameter(Mandatory=$false, Position=4)]
+        [int]    $TotalNumberofEntries=100
     )
 
-    if($cmdletName -eq $null) { throw "CmdletName not given" }
-    if($status -eq $null) { throw "Status not given" }
+    $PercentComplete = [System.Math]::Floor(($CurrentEntryCount/$TotalNumberOfEntries)%100)
+    Write-Progress -Activity $Activity -Status $Status -PercentComplete $PercentComplete 
 
-    if($currentEntryCount -gt 0 -and 
-       $totalNumberofEntries -gt 0 -and 
-       $previousSegmentWeight -ge 0 -and 
-       $currentSegmentWeight -gt 0)
-    {
-        $entryDefaultWeight = $currentSegmentWeight/[double]$totalNumberofEntries
-        $percentComplete = $previousSegmentWeight + ($entryDefaultWeight * $currentEntryCount)
-        Write-Progress -Activity $cmdletName -Status $status -PercentComplete $percentComplete 
-    }
 } # Display-ProgressBar
 
+# <summary> Finds directories where PowerShell modules and scripts are located </summary>
+# <return> An array of PowerShell modules and scripts sources directories </return>
+# <details>
+#	We just rely on the assumption that the modules paths are console-output.
+#	Why, Get-Module CmdLet output object cannot tell us search directories, can it?
+# </details>
 Function Get-PSSourceFilesDirectories
 {
-	# We just rely on the assumption that the modules paths are console-output.
-	# Why, Get-Module CmdLet output object cannot tell us search directories, can it?
+	[CmdLetBinding()]
 	
 	# Progress bar
 	$Script:EntryCount += 4
-	$PrevSegW = 0
-	$CurrentSegW = 100
-	Display-ProgressBar $Script:Activity "Get-PSSourceFilesDirectories: Leveraging Get-Module CmdLet" $PrevSegW $CurrentSegW $Script:TotalEntryCount $Script:EntryCount
+	Display-ProgressBar -Activity $Script:Activity ` 
+	                    -Status "Get-PSSourceFilesDirectories: Leveraging Get-Module CmdLet" ` 
+						-CurrentEntryCount $Script:EntryCount
 
 	$OutFile = Join-Path $Home "PSModulesList.txt"
 	Get-Module -ListAvailable -All > "$OutFile"
 
 	# Progress bar
 	$Script:EntryCount =+ 25
-	$CurrentSegW = 100
-	Display-ProgressBar $Script:Activity "Get-PSSourceFilesDirectories: Processing Get-Module CmdLet Output" $PrevSegW $CurrentSegW $Script:TotalEntryCount $Script:EntryCount
+	Display-ProgressBar -Activity $Script:Activity ` 
+	                    -Status "Get-PSSourceFilesDirectories: Processing Get-Module CmdLet Output" `
+						-CurrentEntryCount $Script:EntryCount
 
 	$Directories = @()
 	$ToSkip = @()
@@ -71,7 +75,9 @@ Function Get-PSSourceFilesDirectories
 		{
 			$Script:EntryCount =+ 1
 		}
-		Display-ProgressBar $Script:Activity "Get-PSSourceFilesDirectories: Processing line $i" $PrevSegW $CurrentSegW $Script:TotalEntryCount $Script:EntryCount
+		Display-ProgressBar -Activity $Script:Activity `
+		                    -Status "Get-PSSourceFilesDirectories: Processing line $i" `
+							-CurrentEntryCount $Script:EntryCount
 		
 		if([System.String]::IsNullOrEmpty($Lines[$i]))
 		{
@@ -81,7 +87,6 @@ Function Get-PSSourceFilesDirectories
 		$regex = "\A\s*directory\s*:\s*(.+)"
 		if($Lines[$i] -Match $regex)
 		{
-			#Write-Output "Quelle horreur: $($Lines[$i])"
 			continue
 		}
 		if([System.String]::IsNullOrEmpty($Matches[1]))
@@ -118,7 +123,6 @@ Function Get-PSSourceFilesDirectories
 			$match = $Lines[$j] -Match $regex
 			if(-not $match)
 			{
-				#Write-Output "Quelle horreur: $($Lines[$j])"
 				continue
 			}
 			if([System.String]::IsNullOrEmpty($Matches[1]))
@@ -146,8 +150,19 @@ Function Get-PSSourceFilesDirectories
 
 } # Get-PSSourceFilesDirectories
 
+# <summary> Scans for PowerShell modules and scripts source files </summary>
+# <return> 
+#	A list of modules hash table, scripts hash table, and sources directories, 
+#	respectively 
+# </return>
+# <details>
+#	The hash tables have source directories as keys and source file 
+#	full paths in values
+# </details>
 Function List-PSSourceFiles
 {
+	[CmdLetBinding()]
+
 	$ScriptsH = $null
 	$ModulesH = $null
 	$Modules = @()
@@ -155,16 +170,22 @@ Function List-PSSourceFiles
 	$Dirs = Get-PSSourceFilesDirectories
 
 	# Progress bar
-	$PrevSegW = 0
-	$CurrentSegW = 100
-	$RemCount = [System.Math]::Floor(($Script:TotalEntryCount-$Script:EntryCount) / $Dirs.Count)
-	Display-ProgressBar $Script:Activity "List-PSSourceFiles: Searching Module Directories" $PrevSegW $CurrentSegW $Script:TotalEntryCount $Script:EntryCount
+	$RemCount = [System.Math]::Floor
+	(
+		($Script:TotalEntryCount-$Script:EntryCount) / $Dirs.Count
+	)
+	Display-ProgressBar -Activity $Script:Activity `
+	                    -Status "List-PSSourceFiles: Searching Module Directories" `
+						-CurrentEntryCount $Script:EntryCount
 	
 	foreach($dir in $Dirs)
 	{	
 		$Items = $dir | Get-ChildItem -File -Recurse | Sort -Property Name
 
-		$ProgressBarStep = [System.Math]::Floor($Items.Count/($Script:TotalEntryCount - $Script:EntryCount - $RemCount))
+		$ProgressBarStep = [System.Math]::Floor
+		(
+			$Items.Count/($Script:TotalEntryCount - $Script:EntryCount - $RemCount)
+		)
 		
 		$i = 0
 		foreach($item in $Items)
@@ -174,7 +195,9 @@ Function List-PSSourceFiles
 			{
 				$Script:EntryCount =+ 1
 			}
-			Display-ProgressBar $Script:Activity "List-PSSourceFiles: PS Item [$($item.Name)]" $PrevSegW $CurrentSegW $Script:TotalEntryCount $Script:EntryCount
+			Display-ProgressBar -Activity $Script:Activity `
+			                    -Status "List-PSSourceFiles: PS Item [$($item.Name)]" `
+								-CurrentEntryCount $Script:EntryCount
 			
 			if($item.FullName -Match "\.ps\d\Z")
 			{
@@ -220,10 +243,13 @@ Function List-PSSourceFiles
 
 } # List-PSSourceFiles
 
+# <summary> Writes source file paths to files according to the origin directories </summary>
+# <return> An array of output files to which the source file paths were written </return>
 Function Write-PSSourceFilesForDisplay
 {
 	[CmdLetBinding()]
-	param(
+	param
+	(
 		[parameter(Mandatory=$true, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
 		[System.Collections.Hashtable[]]$SourceFiles,
 		[parameter(Mandatory=$true, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
@@ -233,9 +259,9 @@ Function Write-PSSourceFilesForDisplay
 
 	# Progress bar
 	$Script:EntryCount += 2
-	$PrevSegW = 0
-	$CurrentSegW = 100
-	Display-ProgressBar $Script:Activity "Write-PSSourceFilesForDisplay: Parsing sources" $PrevSegW $CurrentSegW $Script:TotalEntryCount $Script:EntryCount
+	Display-ProgressBar -Activity $Script:Activity `
+	                    -Status "Write-PSSourceFilesForDisplay: Parsing sources" `
+						-CurrentEntryCount $Script:EntryCount
 
 	# For Progress bar
 	$ItemsCount = 0
@@ -243,7 +269,10 @@ Function Write-PSSourceFilesForDisplay
 	{
 		$ItemsCount += $sources.Values.Count
 	}
-	$ProgressBarStep = [System.Math]::Floor($ItemsCount/($Script:TotalEntryCount - $Script:EntryCount))
+	$ProgressBarStep = [System.Math]::Floor
+	(
+		$ItemsCount/($Script:TotalEntryCount - $Script:EntryCount)
+	)
 
 	$PSSourceFilesListFiles = @()
 	foreach($sources in $SourceFiles)
@@ -273,7 +302,9 @@ Function Write-PSSourceFilesForDisplay
 			{
 				$Script:EntryCount =+ 1
 			}
-			Display-ProgressBar $Script:Activity "Write-PSSourceFilesForDisplay: Writing source files names from [$dir] to [$File]" $PrevSegW $CurrentSegW $Script:TotalEntryCount $Script:EntryCount
+			Display-ProgressBar -Activity $Script:Activity `
+			                    -Status "Write-PSSourceFilesForDisplay: Writing source files names from [$dir] to [$File]" `
+								-CurrentEntryCount $Script:EntryCount
 
 			$dirregex = [System.Text.RegularExpressions.Regex]::Escape($dir)
 			if($sources.ContainsKey($dir))
@@ -299,10 +330,13 @@ Function Write-PSSourceFilesForDisplay
 
 } # Write-PSSourceFilesForDisplay
 
+# <summary> Displays PowerShell source files paths in a code editor </summary>
+# <return> The source code editor process object </return>
 Function Display-PSSourceFilesList
 {
 	[CmdLetBinding()]
-	param(
+	param
+	(
 		[parameter(Mandatory=$false, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
 		[System.String]$EditorExecPath=$null
 	)
