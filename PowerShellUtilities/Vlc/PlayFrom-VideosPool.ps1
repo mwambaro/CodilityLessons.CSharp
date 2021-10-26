@@ -1,5 +1,6 @@
 ﻿
-param(
+param
+(
 	[parameter(ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
 	[System.String[]]$VideosFolder
 )
@@ -10,7 +11,8 @@ param(
 Function Get-InstalledApplication
 {
 	[CmdletBinding()]
-	param(
+	param
+	(
 		[parameter(Mandatory=$true, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
 		[System.String[]]$DisplayName
 	)
@@ -50,7 +52,8 @@ Function Get-InstalledApplication
 Function PlayFrom-VideosPool
 {
 	[CmdletBinding()]
-	param(
+	param
+	(
 		[parameter(Mandatory=$true, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
 		[System.String[]]$SourceFolder
 	)
