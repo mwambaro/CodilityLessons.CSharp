@@ -62,8 +62,7 @@ namespace NavigateItemsPoolForm
                     case "Movies":
                         if (null == Pipe)
                         {
-                            Pipe = new System.IO.Pipes.NamedPipeClientStream("VideosPool");// "FormPipe", System.IO.Pipes.PipeDirection.InOut);
-
+                            Pipe = new System.IO.Pipes.NamedPipeClientStream("VideoItemsPoolPipe");// "FormPipe", System.IO.Pipes.PipeDirection.InOut);
                         }
 
                         if (!Pipe.IsConnected)

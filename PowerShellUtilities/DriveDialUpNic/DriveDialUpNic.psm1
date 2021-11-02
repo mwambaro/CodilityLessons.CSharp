@@ -64,7 +64,7 @@ function Subscribe-ToTimerEvent
     param([System.Management.Automation.ScriptBlock]$TimerEventAction = {})
 
     $srcId = "Timer.Elpased"
-    $Event = Get-EventSubscriber | Where-Object{$_.SourceIdentifier -Match "^$($srcId)$"}
+    $Event = Get-EventSubscriber | Where {$_.SourceIdentifier -Match "^$($srcId)$"}
     if($Event)
     {
         Unregister-Event -SourceIdentifier $srcId
