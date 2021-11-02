@@ -14,7 +14,7 @@ $Script:Activity = "Listing PowerShell Source Files For Display in Code Editor"
 # <param name="Activity"> Activity name or id for which we need progress bar </param>
 # <param name="Status"> Activity progression status information </param>
 # <param name="CurrentEntryCount"> The current progression point in entries count </param>
-# <param name="TotalNumberOfEntries"> The total number of entries. You can go beyond the defualt 100 </param>
+# <param name="TotalNumberOfEntries"> The total number of entries. You can go beyond the default 100 </param>
 Function Display-ProgressBar
 {
     [CmdLetBinding()]
@@ -368,7 +368,7 @@ Function Display-PSSourceFilesList
 	# Set default to 'Visual Studio Code'
 	if([System.String]::IsNullOrEmpty($EditorExecPath))
 	{
-		$EditorExecPath = "$Home\AppData\Local\Programs\Microsoft VS Code\Code.exe"
+		$EditorExecPath = Join-Path $Home "AppData\Local\Programs\Microsoft VS Code\Code.exe"
 	}
 	
 	$Process = $null
@@ -392,7 +392,7 @@ Function Display-PSSourceFilesList
 			if(-not (Test-Path "$EditorPath"))
 			{
 				Write-Output "Editor: $($AppItem[0].DisplayName) could not be found"
-				return $AppItem
+				return $null
 			}
 			Write-Output $EditorPath
 			$EditorExecPath = $EditorPath

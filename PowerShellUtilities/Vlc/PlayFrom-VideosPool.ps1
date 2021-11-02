@@ -58,66 +58,149 @@ Function PlayFrom-VideosPool
 		[System.String[]]$SourceFolder
 	)
 
-	# Read in played items
-	$PlayedItemsPath = Join-Path $Home "VideosPoolPlayedItems.txt"
-	$PlayedItems = $null
-	if(Test-Path $PlayedItemsPath)
-	{
-		$PlayedItems = [System.IO.File]::ReadAllLines($PlayedItemsPath)
-	}
+	$Process = $null
 
-	# Get Items to play
-	$Items = $SourceFolder | Get-ChildItem -File -Recurse | Select Name, FullName, @{label="Size";expression={$_.Length}}
-	
-	# Check Media Process Existence
-	$MediaProcess = "vlc"
-	$ProcessExists = $false
-	$Process = Get-Process $MediaProcess -ErrorAction SilentlyContinue 
-	if($Process)
+	try
 	{
-		$Process | % {
-			$proc = $_
-			$ii = $proc.MainWindowTitle.LastIndexOf("-")
-			$PlayingItem = $proc.MainWindowTitle.Substring(0, $ii).Trim()
-			if($Items)
-			{
-				if($PlayingItem -in $Items.Name)
+
+		# Read in played items
+		$PlayedItemsPath = Join-Path $Home "VideosPoolPlayedItems.txt"
+		$PlayedItems = $null
+		if(Test-Path $PlayedItemsPath)
+		{
+			$PlayedItems = [System.IO.File]::ReadAllLines($PlayedItemsPath)
+		}
+
+		# Get Items to play
+		$Items = $SourceFolder | Get-ChildItem -File -Recurse | Select Name, FullName, @{label="Size";expression={$_.Length}}
+	
+		# Check Media Process Existence
+		$MediaProcess = "vlc"
+		$ProcessExists = $false
+		$Process = Get-Process $MediaProcess -ErrorAction SilentlyContinue 
+		if($Process)
+		{
+			$Process | % {
+				$proc = $_
+				$ii = $proc.MainWindowTitle.LastIndexOf("-")
+				$PlayingItem = $proc.MainWindowTitle.Substring(0, $ii).Trim()
+				if($Items)
 				{
-					$ProcessExists = $true
-					$Process = $proc
+					if($PlayingItem -in $Items.Name)
+					{
+						$ProcessExists = $true
+						$Process = $proc
+					}
 				}
 			}
 		}
-	}
 
-	if($ProcessExists)
-	{
-		return $Process
-	}
+		if($ProcessExists)
+		{
+			#return $Process
+		}
 
-	# Sort by size, decreasing
-	$SortedItems = $Items | Sort -Property Size -Descending
+		# Sort by size, decreasing
+		$SortedItems = $Items | Sort -Property Size -Descending
 
-	# Play first not-yet-played item
-	$MediaPlayerName = "vlc"
-	$MediaPlayerItem = Get-InstalledApplication -DisplayName $MediaPlayerName
-	if($MediaPlayerItem)
-	{
-		$MediaPlayerPath = Join-Path $MediaPlayerItem.InstallLocation "vlc.exe"
-		Write-Output $MediaPlayerPath
-		$SortedItems | % {
-			if(-not ($_.Name -in $PlayedItems))
+		# Play first not-yet-played item
+		$MediaPlayerName = "vlc"
+		$MediaPlayerItem = Get-InstalledApplication -DisplayName $MediaPlayerName
+		if($MediaPlayerItem)
+		{
+			$MediaPlayerPath = Join-Path $MediaPlayerItem.InstallLocation "vlc.exe"
+			Write-Output $MediaPlayerPath
+
+			$Encoding = [System.Text.Encoding]::UTF8
+			$PipeDir = [System.IO.Pipes.PipeDirection]::InOut
+			$Pipe = New-Object System.IO.Pipes.NamedPipeServerStream "VideosPool"
+			$Pipe.WaitForConnectionAsync()
+			$Size = 1024
+		
+			# Start Form UI
+			$Exec = "D:\Data\Tutorials\Dot NET Core\Codility\CodilityLessons\NavigateItemsPoolForm\bin\Debug\NavigateItemsPoolForm.exe"
+			Start-Process -FilePath "$Exec" | Out-Null
+		
+			while($true)
 			{
-				Write-Output "$($_.Name)" >> "$PlayedItemsPath"
-				$VideoFile = $_.FullName
-				$Process =  Start-Process -FilePath "$MediaPlayerPath" -ArgumentList """$VideoFile""", "--no-loop", "--no-repeat", "--no-qt-video-autoresize", "--fullscreen"
-				break
+				$SortedItems | % {
+					if(-not ($_.Name -in $PlayedItems))
+					{
+						if($Pipe.IsConnected)
+						{
+							$Command = $null
+
+							Write-Output "Buffer size: $($Size)"
+							
+							$buffer = [byte[]]::new($Pipe.InBufferSize)
+							$NRead = $Pipe.Read($buffer, 0, $buffer.Count)
+							if($NRead -eq $buffer.Count)
+							{
+								Write-Warning "May need more buffer space: {Read: $NRead; Buffer size: $($buffer.Count)}"
+							}
+							$Command = $Encoding.GetString($buffer)
+							$buffer.Clear()
+							$buffer = $null
+
+							if([string]::IsNullOrEmpty($Command))
+							{
+								break
+							}
+
+							Write-Output "Command: $Command"
+						
+							$VideoFile = $null
+							switch($Command)
+							{
+								"Next"
+								{
+									Write-Output "$($_.Name)" >> "$PlayedItemsPath"
+									$VideoFile = $_.FullName
+								}
+								"Previous"
+								{
+									$VideoFile = $PlayedItems[$PlayedItems.Count-2]
+								}
+							}
+
+							if(-not [string]::IsNullOrEmpty($VideoFile))
+							{
+								if($Process)
+								{
+									Stop-Process -InputObject $Process | Out-Null
+								}
+								$Process =  Start-Process -FilePath "$MediaPlayerPath" -ArgumentList """$VideoFile""", "--no-loop", "--no-repeat", "--no-qt-video-autoresize", "--fullscreen"
+							}
+							break
+						}
+						else
+						{
+							Write-Output "Pipe not connected."
+						}
+					}
+				}
+
+				$PlayedItems = [System.IO.File]::ReadAllLines($PlayedItemsPath)
+
+				sleep 2
 			}
 		}
+		else
+		{
+			Write-Verbose "Did not find ${MediaPlayerName} App."
+		}
 	}
-	else
+	catch
 	{
-		Write-Verbose "Did not find ${MediaPlayerName} App."
+		Write-Output "PlayFrom-VideosPool: $($_)"
+	}
+	finally
+	{
+		if($Pipe)
+		{
+			$Pipe.Close()
+			$Pipe.Dispose()
+		}
 	}
 
 	return $Process
