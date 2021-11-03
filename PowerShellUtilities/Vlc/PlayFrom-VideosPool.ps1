@@ -7,6 +7,7 @@ param
 
 $VideosPoolPipe = $null
 $AbortSourceIdentifier = "Ctrl_C_Pressed"
+$PipeServerStreamPath = Join-Path $Home "_pipe_stream_object.xml"
 
 # <summary> Gets the specific installed application(s) from amongst all installed Apps </summary>
 # <param name="DisplayName"> The display name(s) of the sought App(s) </param>
@@ -55,16 +56,22 @@ Function Handle-AbortEventFromCtrlC
 	(
 		[parameter(ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
 		[ValidateNotNull()]
-		[ScriptBlock]$Action
+		[ScriptBlock]$Action,
+		[parameter(Mandatory=$true)]
+		[ValidateNotNullOrEmpty()]
+		[System.String]$SourceIdentifier
 	)
 
 	try
 	{
-		$SourceIdentifier = $AbortSourceIdentifier
-		$EventName = "Abort Script"
-		$Object = $MyInvocation
 
-		Register-ObjectEvent -InputObject $Object -EventName $EventName -SourceIdentifier $SourceIdentifier -Action $Action
+		$Event = Get-EventSubscriber | Where {$_.SourceIdentifier -Match "\A$($SourceIdentifier)\Z"}
+		if($Event)
+		{
+			Unregister-Event -SourceIdentifier $SourceIdentifier
+		}
+
+		Register-EngineEvent -SourceIdentifier $SourceIdentifier -Action $Action | Out-Null
 	}
 	catch
 	{
@@ -80,16 +87,18 @@ Function Fire-AbortEventFromCtrlC
 	(
 		[parameter(ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
 		[ValidateNotNull()]
-		[System.Management.Automation.Host.KeyInfo[]]$Keys
+		[System.Management.Automation.Host.KeyInfo[]]$Keys,
+		[parameter(Mandatory=$true)]
+		[ValidateNotNullOrEmpty()]
+		[System.String]$SourceIdentifier
 	)
 
 	try
 	{
-		$SourceIdentifier = $AbortSourceIdentifier
 		$Sender = $MyInvocation
 		$Msg = "$($Keys.VirtualKeyCode -Join '+') were pressed."
 
-		New-Event -SourceIdentifier $SourceIdentifier -Sender $Sender -EventArguments $Keys -MessageData $Msg
+		New-Event -SourceIdentifier $SourceIdentifier -Sender $Sender -EventArguments $Keys -MessageData $Msg | Out-Null
 	}
 	catch
 	{
@@ -101,7 +110,12 @@ Function Fire-AbortEventFromCtrlC
 Function Catch-CtrlCKeys
 {
 	[CmdletBinding()]
-	param()
+	param
+	(
+		[parameter(Mandatory=$true)]
+		[ValidateNotNullOrEmpty()]
+		[System.String]$SourceIdentifier
+	)
 	
 	try
 	{
@@ -123,12 +137,14 @@ Function Catch-CtrlCKeys
                 $key2 = $host.UI.RawUI.ReadKey()
                 if($key1.VirtualKeyCode -eq 17 -and $key2.VirtualKeyCode -eq 67)
                 {
-                    $break_c = $false
+					$break_c = $false
 					$Keys += $key1
 					$Keys += $key2
 					# Fire Abort Event Handler
-					Fire-AbortEventFromCtrlC -Keys $Keys | Out-Null
+					Fire-AbortEventFromCtrlC -Keys $Keys -SourceIdentifier $SourceIdentifier | Out-Null
                 }
+
+				"Key 1: $($key1); Key 2: $($key2) at $(Get-Date)" | Out-File "$(Join-Path $Home 'Ctrl_C_Keys.txt')"
             }
             while($break_c)
 		}
@@ -140,6 +156,69 @@ Function Catch-CtrlCKeys
 
 } # Catch-CtrlCKeys
 
+Function Create-NamedPipeServerStream
+{
+	[CmdletBinding()]
+	[OutputType([System.IO.Pipes.NamedPipeServerStream])]
+	param 
+	(
+		[System.String]$Path=$null,
+		[System.String]$PipeName="VideoItemsPoolPipe"
+	)
+
+	$Pipe = $null
+
+	try 
+	{
+		$Imported = $false 
+		if([System.String]::IsNullOrEmpty($Path))
+		{
+			$Path = $PipeServerStreamPath
+		}
+
+		if(Test-Path "$Path")
+		{
+			$Pipe = (Import-Clixml -Path "$Path") -as [System.IO.Pipes.NamedPipeServerStream]
+			if($Pipe)
+			{
+				Write-Output "Imported: $($Pipe.GetType().ToString())"
+				$Imported = $true
+			}
+
+			# Register for PowerShell.Exiting event
+			$x = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
+				if(Test-Path "$Path")
+				{
+					Remove-Item "$Path" | Out-Null
+				}
+			}
+		}
+		
+		
+		if(-not $Imported)
+		{
+			$PipeDirection = $PipeDirection = [System.IO.Pipes.PipeDirection]::InOut
+			$Pipe = New-Object System.IO.Pipes.NamedPipeServerStream $PipeName, $PipeDirection
+			if($Pipe)
+			{
+				Export-Clixml -InputObject $Pipe -Path $Path | Out-Null
+				Write-Output "Pipe exported to [$Path]"
+			}
+		}
+
+		if($Pipe)
+		{
+			$Pipe.WaitForConnectionAsync() | Out-Null
+		}
+	}
+	catch 
+	{
+		Write-Output "Create-NamedPipeServerStream: $_"
+	}
+
+	return $Pipe
+
+} # Create-NamedPipeServerStream
 
 # <summary> Plays a video file from a pool of videos, one unique video at a time </summary>
 # <param name="SourceFolder"> Folder(s) path to the videos pool </param>
@@ -206,23 +285,30 @@ Function PlayFrom-VideosPool
 			$Pipe = $null
 			try
 			{
-				$VideosPoolPipe = New-Object System.IO.Pipes.NamedPipeServerStream "VideoItemsPoolPipe", $PipeDirection
+				$VideosPoolPipe = [System.IO.Pipes.NamedPipeServerStream]::new("VideoItemsPoolPipe", $PipeDirection)
+				if($null -eq $VideosPoolPipe)
+				{
+					throw "Failed to create pipe server stream"
+				}
+
 				$VideosPoolPipe.WaitForConnectionAsync()
 				# Start Form UI
 				$Exec = "D:\Data\Tutorials\Dot NET Core\Codility\CodilityLessons\NavigateItemsPoolForm\bin\Debug\NavigateItemsPoolForm.exe"
 				Start-Process -FilePath "$Exec" | Out-Null
 
+				# Handle Abort through Ctrl + C
+				$SrcId = $AbortSourceIdentifier
+				Catch-CtrlCKeys -SourceIdentifier $SrcId | Out-Null
+
 				# Register for Abort Event
-				Handle-AbortEventFromCtrlC -Action {
-					if(VideosPoolPipe)
+				$x = Handle-AbortEventFromCtrlC -SourceIdentifier $SrcId -Action {
+					if($VideosPoolPipe)
 					{
 						$VideosPoolPipe.Close()
 						$VideosPoolPipe.Dispose()
 						Write-Output "Pipe gracefully disposed."
 					}
 				}
-				# Handle Abort through Ctrl + C
-				Catch-CtrlCKeys | Out-Null
 			}
 			catch
 			{
@@ -241,6 +327,7 @@ Function PlayFrom-VideosPool
 			{
 				$SortedItems | % {
 					$Mname = $_.Name
+					$VFile = $_.FullName
 
 					if(-not ($Mname -in $PlayedItems))
 					{
@@ -274,13 +361,15 @@ Function PlayFrom-VideosPool
 						{
 							"Next"
 							{
-								$VideoFile = $_.FullName
+								$VideoFile = $VFile
 							}
 							"Previous"
 							{
 								$VideoFile = $PlayedItems[$PlayedItems.Count-2]
 							}
 						}
+
+						Write-Output "Video: $VideoFile"
 
 						if(-not [string]::IsNullOrEmpty($VideoFile))
 						{
@@ -291,6 +380,8 @@ Function PlayFrom-VideosPool
 									Write-Output "$($Mname)" >> "$PlayedItemsPath"
 								}
 								$Process =  Start-Process -FilePath "$MediaPlayerPath" -ArgumentList """$VideoFile""", "--no-loop", "--no-repeat", "--no-qt-video-autoresize", "--fullscreen"
+							
+								break
 							}
 							else
 							{
@@ -301,6 +392,8 @@ Function PlayFrom-VideosPool
 										Stop-Process -InputObject $Process | Out-Null
 									}
 									$Process =  Start-Process -FilePath "$MediaPlayerPath" -ArgumentList """$VideoFile""", "--no-loop", "--no-repeat", "--no-qt-video-autoresize", "--fullscreen"
+								
+									break
 								}
 							}
 						}
