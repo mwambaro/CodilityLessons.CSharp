@@ -11,7 +11,7 @@ using System.Windows.Forms;
 
 namespace NavigateItemsPoolForm
 {
-    public partial class Form1 : Form
+    public partial class MainForm : Form
     {
         System.Text.Encoding Encoding => System.Text.Encoding.UTF8;
         string PipeMessageSeparator => "#";
@@ -19,12 +19,13 @@ namespace NavigateItemsPoolForm
         Task PipeWriteTask = null;
         Color VerboseTextBoxForeColor;
 
-        public Form1()
+        public MainForm()
         {
             InitializeComponent();
             this.ItemsCategoryComboBox.SelectedIndex = 1;
             this.ItemsSourceComboBox.SelectedIndex = 0;
-            this.NavigationModeCheckedListBox.SelectedIndex = 0;
+            this.NavigationModeCheckedListBox.CheckOnClick = true;
+            this.NavigationModeCheckedListBox.SetItemChecked(0, true);
         }
 
         private void OnVerboseTextBoxTextChanged(object sender, EventArgs e)
@@ -59,6 +60,39 @@ namespace NavigateItemsPoolForm
             System.Windows.Forms.ComboBox box = sender as System.Windows.Forms.ComboBox;
         }
 
+        private void OnClickFeedbackPanel(object sender, EventArgs e)
+        {
+            try
+            {
+                var layout = sender as Panel;
+                layout.SendToBack();
+                layout.Visible = false;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("OnClickFeedBackFlowLayoutPanel: " + ex.Message);
+            }
+        }
+
+        private void OnFeedbackLabelTextChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                var label = sender as Label;
+                // Center FeedbackLabel
+                int X = (this.FeedbackPanel.Size.Width - label.Size.Width) / 2;
+                int Y = (this.FeedbackPanel.Size.Height - label.Size.Height) / 2;
+                Point location = label.Location;
+                location.X = X;
+                location.Y = Y;
+                label.Location = location;
+            }
+            catch(Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("OnFeedbackLabelTextChanged: " + ex.Message);
+            }
+        }
+
         private void WriteVerbose(string message, bool noNewLine=false, string ccolor="White")
         {
             try
@@ -78,11 +112,34 @@ namespace NavigateItemsPoolForm
             }
         }
 
+        private void WriteFeedback(string message)
+        {
+            try
+            {
+                string msg = message;
+
+                this.FeedbackLabel.Text = msg;
+                this.FeedbackLabel.BringToFront();
+                
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("WriteFeedback: " + ex.Message);
+            }
+        }
+
         private void NavigateItemsPool(object itmCategory, object itmSource, string command)
         {
             try
             {
                 string verbose = $"Processing command '{command}' for category '{itmCategory.ToString()}' and source '{itmSource.ToString()}' ... ";
+                // Feed back curtain
+                bool hideFeedbackLayout = true;
+                //WriteFeedback(verbose);
+                this.FeedbackPanel.BringToFront();
+                this.FeedbackPanel.Visible = true;
+
+                
                 WriteVerbose(verbose);
                 string itemCategory = itmCategory.ToString();
                 string itemSource = itmSource.ToString();
@@ -138,6 +195,7 @@ namespace NavigateItemsPoolForm
                         var buffer = Encoding.GetBytes(message);
                         int size = buffer.Count();
                         PipeWriteTask = Pipe.WriteAsync(buffer, 0, size);
+                        hideFeedbackLayout = false;
                     }
                     else
                     {
@@ -153,6 +211,12 @@ namespace NavigateItemsPoolForm
 
                 verbose = "Done Processing";
                 WriteVerbose(verbose, false, "Green");
+
+                if(hideFeedbackLayout)
+                {
+                    this.FeedbackPanel.SendToBack();
+                    this.FeedbackPanel.Visible = false;
+                }
             }
             catch(Exception ex)
             {
