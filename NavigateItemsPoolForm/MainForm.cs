@@ -15,6 +15,7 @@ namespace NavigateItemsPoolForm
     {
         System.Text.Encoding Encoding => System.Text.Encoding.UTF8;
         string PipeMessageSeparator => "#";
+        string ClientPipeName => "ItemsPoolPipe8";
         System.IO.Pipes.NamedPipeClientStream Pipe = null;
         Task PipeWriteTask = null;
         Color VerboseTextBoxForeColor;
@@ -146,7 +147,7 @@ namespace NavigateItemsPoolForm
 
                 if (null == Pipe)
                 {
-                    Pipe = new System.IO.Pipes.NamedPipeClientStream("VideoItemsPoolPipe");// "FormPipe", System.IO.Pipes.PipeDirection.InOut);
+                    Pipe = new System.IO.Pipes.NamedPipeClientStream(ClientPipeName);// "FormPipe", System.IO.Pipes.PipeDirection.InOut);
                 }
 
                 if (!Pipe.IsConnected)
