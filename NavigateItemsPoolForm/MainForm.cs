@@ -17,8 +17,10 @@ namespace NavigateItemsPoolForm
         string PipeMessageSeparator => "#";
         string ClientPipeName => "ItemsPoolPipe12";
         Task FeedbackFromServerTask = null;
+        System.Drawing.Size ReferenceTextCharacterSize = default;
         System.IO.Pipes.NamedPipeClientStream Pipe = null;
-        Task PipeWriteTask = null;
+        List<Task> PipeWriteTasks = null;
+        Task PipeFeedbackTask = null;
         Color VerboseTextBoxForeColor;
 
         public MainForm()
@@ -29,6 +31,8 @@ namespace NavigateItemsPoolForm
             this.NavigationModeCheckedListBox.CheckOnClick = true;
             this.NavigationModeCheckedListBox.SetItemChecked(0, true);
             FeedbackFromServerTask = HandleFeedbackFromPipeServerStream();
+            PipeFeedbackTask = GiveFeedbackToUiInput();
+            ReferenceTextCharacterSize = AssessTextCharacterSize();
         }
 
         private void OnVerboseTextBoxTextChanged(object sender, EventArgs e)
@@ -58,6 +62,23 @@ namespace NavigateItemsPoolForm
             }
         }
 
+        private void OnFeedbackPanelOkButtonClicked(object sender, EventArgs e)
+        {
+            try
+            {
+                this.FeedbackPanel.SendToBack();
+                this.FeedbackPanel.Visible = false;
+            }
+            catch(Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine
+                (
+                    "OnFeedbackPanelOkButtonClicked: " + ex.Message
+                );
+            }
+
+        } // OnFeedbackPanelOkButtonClicked
+
         private void OnSelectedValueChanged(object sender, EventArgs e)
         {
             System.Windows.Forms.ComboBox box = sender as System.Windows.Forms.ComboBox;
@@ -75,26 +96,113 @@ namespace NavigateItemsPoolForm
             {
                 System.Diagnostics.Debug.WriteLine("OnClickFeedBackFlowLayoutPanel: " + ex.Message);
             }
-        }
 
-        private void OnFeedbackLabelTextChanged(object sender, EventArgs e)
+        } // OnClickFeedbackPanel
+
+        private void OnFeedbackRichTextBoxTextChanged(object sender, EventArgs e)
         {
             try
             {
-                var label = sender as Label;
-                // Center FeedbackLabel
-                int X = (this.FeedbackPanel.Size.Width - label.Size.Width) / 2;
-                int Y = (this.FeedbackPanel.Size.Height - label.Size.Height) / 2;
-                Point location = label.Location;
+                var box = sender as RichTextBox;
+                // Adapt size
+                var textSize = RichTextAreaSize(box.Text);
+                int height = textSize["Height"] * ReferenceTextCharacterSize.Height;
+                int width = textSize["Width"] * ReferenceTextCharacterSize.Width;
+                box.Size = new System.Drawing.Size(width, height);
+                // Center Feedback text box
+                int X = this.FeedbackPanel.Size.Width > box.Size.Width ?
+                        (this.FeedbackPanel.Size.Width - box.Size.Width) / 2 :
+                        0;
+                int Y = this.FeedbackPanel.Size.Height > box.Size.Height ?
+                        (this.FeedbackPanel.Size.Height - box.Size.Height) / 2 :
+                        0;
+                Point location = box.Location;
                 location.X = X;
                 location.Y = Y;
-                label.Location = location;
+                box.Location = location;
             }
             catch(Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("OnFeedbackLabelTextChanged: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine
+                (
+                    "OnFeedbackRichTextBoxTextChanged: " + ex.Message
+                );
             }
-        }
+
+        } // OnFeedbackRichTextBoxTextChanged
+
+        /// <summary>
+        ///     Calculates the number of lines and the length of the longest line of a rich text.
+        /// </summary>
+        /// <param name="richText">Multi-line rich text string </param>
+        /// <returns> A {Height: number of lines, Width: length of longest line} dictionary</returns>
+        private Dictionary<string, int> RichTextAreaSize(string richText)
+        {
+            Dictionary<string, int> textSize = null;
+
+            try
+            {
+                var ary = new string[] { "\n", "\r", "\r\n" };
+                var lines = richText.Split(ary, StringSplitOptions.RemoveEmptyEntries);
+                // Longest line length
+                int length = 0;
+                foreach (string line in lines)
+                {
+                    int l = line.Length;
+                    if (l > length)
+                    {
+                        length = l;
+                    }
+                }
+                textSize = new Dictionary<string, int>();
+                textSize["Height"] = lines.Count();
+                textSize["Width"] = length;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("RichTextAreaSize: " + ex.Message);
+            }
+
+            return textSize;
+
+        } // RichTextAreaSize
+
+        /// <summary>
+        ///     Assesses the view port size of a text character according to original font
+        /// </summary>
+        /// <param name="reference"> Reference RichTextBox object mocked in UI visual design </param>
+        /// <returns></returns>
+        /// <details>
+        ///     Must run when we know the text fits well in reference text box.
+        ///     For example, in constructor, after components initialization,
+        ///     assuming satisfying visual UI design.
+        /// </details>
+        private System.Drawing.Size AssessTextCharacterSize(RichTextBox reference=null)
+        {
+            Size Size = default;
+
+            try
+            { 
+                if(null == reference)
+                {
+                    reference = this.FeedbackRichTextBox;
+                }
+
+                var textSize = RichTextAreaSize(reference.Text);
+                // Reference character font size
+                int height = reference.Size.Height / textSize["Height"];
+                int width = reference.Size.Width / textSize["Width"];
+
+                Size = new Size(width, height);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("AssessTextCharacterSize: " + ex.Message);
+            }
+
+            return Size;
+
+        } // AssessTextCharacterSize
 
         private void WriteVerbose(string message, bool noNewLine=false, string ccolor="White")
         {
@@ -113,7 +221,8 @@ namespace NavigateItemsPoolForm
             {
                 System.Diagnostics.Debug.WriteLine("WriteVerbose: " + ex.Message);
             }
-        }
+
+        } // WriteVerbose
 
         private void WriteFeedback(string message)
         {
@@ -121,15 +230,17 @@ namespace NavigateItemsPoolForm
             {
                 string msg = message;
 
-                this.FeedbackLabel.Text = msg;
-                this.FeedbackLabel.BringToFront();
-                var list = new System.Collections.Generic.List<string>();
+                this.FeedbackRichTextBox.Text = msg;
+                //this.FeedbackRichTextBox.BringToFront();
+                this.FeedbackPanel.BringToFront();
+                this.FeedbackPanel.Visible = true;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("WriteFeedback: " + ex.Message);
             }
-        }
+
+        } // WriteFeedback
 
         private string InterpreteFeedbackFromPipeServerStream(string data)
         {
@@ -138,33 +249,21 @@ namespace NavigateItemsPoolForm
             try
             {
                 var strings = data.Split('#');
-                string status = System.String.Empty;
                 string feedback = System.String.Empty;
-                if (strings.Count() > 1)
+                if (strings.Count() == 5)
                 {
-                    feedback = $"Command '{strings[1]}' on " +
+                    feedback = $"Status:  {strings[0]}\r\n" + 
+                               $"Command: '{strings[1]}' on " +
                                $"'{strings[2]}' from " +
-                               $"'{strings[3]}' [{strings[4]}]";
-                    status = strings[0];
+                               $"'{strings[3]}' \r\n" + 
+                               $"Date:    {strings[4]}";
                 }
                 else
                 {
-                    feedback = System.String.Empty;
-                    status = strings[0];
+                    feedback = $"Status: {strings[0]}\r\n";
                 }
 
-                if (Regex.IsMatch(status, "OK"))
-                {
-                    message = $"{feedback} succeeded";
-                }
-                else if (Regex.IsMatch(status, "ERROR"))
-                {
-                    message = $"{feedback} failed";
-                }
-                else
-                {
-                    message = $"{feedback} met unknown error";
-                }
+                message = feedback;
             }
             catch(Exception ex)
             {
@@ -248,10 +347,7 @@ namespace NavigateItemsPoolForm
                                 while (loopRead);
 
                                 // Write feedback to user
-                                if (
-                                    !this.FeedbackPanel.Visible &&
-                                    !System.String.IsNullOrEmpty(data)
-                                )
+                                if (!System.String.IsNullOrEmpty(data))
                                 {
                                     string message = InterpreteFeedbackFromPipeServerStream(data);
 
@@ -279,19 +375,76 @@ namespace NavigateItemsPoolForm
 
         } // HandleFeedbackFromPipeServerStream
 
+        private Task GiveFeedbackToUiInput()
+        {
+            var ftask = Task.Factory.StartNew(new Action(() =>
+            {
+                try
+                {
+                    while (true)
+                    {
+                        var tasks = PipeWriteTasks.Take(PipeWriteTasks.Count()); // Clone
+                        var lines = new List<string>();
+                        foreach (Task task in tasks)
+                        {
+                            string msg = "Command '{}' on '{}' from '{}'";
+                            string status = System.String.Empty;
+                            if (task.IsCanceled)
+                            {
+                                status = "Status: Canceled";
+                                PipeWriteTasks.Remove(task);
+                            }
+                            else if (task.IsFaulted)
+                            {
+                                status = "Status: Faulted";
+                                PipeWriteTasks.Remove(task);
+                            }
+                            else if (task.IsCompleted)
+                            {
+                                status = "Status: Completed";
+                                PipeWriteTasks.Remove(task);
+                            }
+                            if(System.String.IsNullOrEmpty(status))
+                            {
+                                lines.Add(status);
+                                lines.Add(msg);
+                            }
+                        }
+
+                        if(lines.Count() > 0)
+                        {
+                            string richText = System.String.Empty;
+                            foreach(string line in lines)
+                            {
+                                richText += $"{line}\r\n";
+                            }
+                            WriteFeedback(richText);
+                            lines.Clear();
+                        }
+
+                        Task.Delay(500);
+                    }
+                }
+                catch(Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine
+                    (
+                        "GiveFeedbackToUiInput: " + ex.Message
+                    );
+                }
+            }));
+            
+            return ftask;
+
+        } // GiveFeedbackToUiInput
+
         private void NavigateItemsPool(object itmCategory, object itmSource, string command)
         {
             try
             {
                 string verbose = $"Processing command '{command}' for category '{itmCategory.ToString()}' and source '{itmSource.ToString()}' ... ";
-                // Feed back curtain
-                bool hideFeedbackLayout = true;
-                //WriteFeedback(verbose);
-                this.FeedbackPanel.BringToFront();
-                this.FeedbackPanel.Visible = true;
-
-                
                 WriteVerbose(verbose);
+
                 string itemCategory = itmCategory.ToString();
                 string itemSource = itmSource.ToString();
 
@@ -321,38 +474,15 @@ namespace NavigateItemsPoolForm
                 {
                     verbose = "OK";
                     WriteVerbose(verbose, false, "Red");
-                    // In case it ever makes sense to queue commands
-                    // which may never occur, solved by a spinner and a feedback message.
-                    bool queueCommand = false; 
-                    if (null != PipeWriteTask)
-                    {
-                        if(!PipeWriteTask.IsCompleted)
-                        {
-                            queueCommand = true;
-                        }
-                    }
-
-                    verbose = "Should we add command to command queue? ... ";
-                    WriteVerbose(verbose, true);
 
                     string message = command + PipeMessageSeparator + 
                                      itemCategory + PipeMessageSeparator + 
                                      itemSource;
-                    if (!queueCommand)
-                    {
-                        verbose = "NO";
-                        WriteVerbose(verbose, false, "Green");
 
-                        var buffer = Encoding.GetBytes(message);
-                        int size = buffer.Count();
-                        PipeWriteTask = Pipe.WriteAsync(buffer, 0, size);
-                        hideFeedbackLayout = false;
-                    }
-                    else
-                    {
-                        verbose = "YES";
-                        WriteVerbose(verbose, false, "Red");
-                    }
+                    var buffer = Encoding.GetBytes(message);
+                    int size = buffer.Count();
+                    var task = Pipe.WriteAsync(buffer, 0, size);
+                    PipeWriteTasks.Add(task);
                 }
                 else
                 {
@@ -362,12 +492,6 @@ namespace NavigateItemsPoolForm
 
                 verbose = "Done Processing";
                 WriteVerbose(verbose, false, "Green");
-
-                if(hideFeedbackLayout)
-                {
-                    this.FeedbackPanel.SendToBack();
-                    this.FeedbackPanel.Visible = false;
-                }
             }
             catch(Exception ex)
             {
@@ -376,6 +500,7 @@ namespace NavigateItemsPoolForm
             finally
             {
             }
+
         } // NavigateItemsPool
     }
 }
