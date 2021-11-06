@@ -66,6 +66,7 @@ namespace NavigateItemsPoolForm
             this.FeedbackRichTextBox.ReadOnly = true;
             this.FeedbackRichTextBox.Size = new System.Drawing.Size(164, 67);
             this.FeedbackRichTextBox.TabIndex = 1;
+            this.FeedbackRichTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.None;
             this.FeedbackRichTextBox.Text = "Feedback lines go here\nLine 2\nLine 3\nLine 4";
             this.FeedbackRichTextBox.TextChanged += new System.EventHandler(this.OnFeedbackRichTextBoxTextChanged);
             // 

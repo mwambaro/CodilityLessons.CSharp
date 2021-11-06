@@ -66,8 +66,7 @@ namespace NavigateItemsPoolForm
         {
             try
             {
-                this.FeedbackPanel.SendToBack();
-                this.FeedbackPanel.Visible = false;
+                HideFeedbackPanel();
             }
             catch(Exception ex)
             {
@@ -94,7 +93,7 @@ namespace NavigateItemsPoolForm
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("OnClickFeedBackFlowLayoutPanel: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine("OnClickFeedbackPanel: " + ex.Message);
             }
 
         } // OnClickFeedbackPanel
@@ -108,6 +107,13 @@ namespace NavigateItemsPoolForm
                 var textSize = RichTextAreaSize(box.Text);
                 int height = textSize["Height"] * ReferenceTextCharacterSize.Height;
                 int width = textSize["Width"] * ReferenceTextCharacterSize.Width;
+                // Adapt to feedback panel
+                width = this.FeedbackPanel.Size.Width <= width ?
+                        this.FeedbackPanel.Size.Width :
+                        width;
+                height = this.FeedbackPanel.Size.Height <= height ?
+                         this.FeedbackPanel.Size.Height :
+                         height;
                 box.Size = new System.Drawing.Size(width, height);
                 // Center Feedback text box
                 int X = this.FeedbackPanel.Size.Width > box.Size.Width ?
@@ -130,6 +136,36 @@ namespace NavigateItemsPoolForm
             }
 
         } // OnFeedbackRichTextBoxTextChanged
+
+        private void HideFeedbackPanel()
+        { 
+            try
+            {
+                this.FeedbackPanel.SendToBack();
+                this.FeedbackPanel.Visible = false;
+                this.FeedbackRichTextBox.Visible = false;
+            }
+            catch(Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("HideFeedbackPanel: " + ex.Message);
+            }
+
+        } // HideFeedbackPanel
+
+        private void ShowFeedbackPanel()
+        {
+            try
+            {
+                this.FeedbackPanel.BringToFront();
+                this.FeedbackPanel.Visible = true;
+                this.FeedbackRichTextBox.Visible = true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("ShowFeedbackPanel: " + ex.Message);
+            }
+
+        } // ShowFeedbackPanel
 
         /// <summary>
         ///     Calculates the number of lines and the length of the longest line of a rich text.
@@ -190,8 +226,8 @@ namespace NavigateItemsPoolForm
 
                 var textSize = RichTextAreaSize(reference.Text);
                 // Reference character font size
-                int height = reference.Size.Height / textSize["Height"];
-                int width = reference.Size.Width / textSize["Width"];
+                int height = (int)Math.Ceiling((double)reference.Size.Height / (double)textSize["Height"]);
+                int width = (int)Math.Ceiling((double)reference.Size.Width / (double)textSize["Width"]);
 
                 Size = new Size(width, height);
             }
@@ -231,9 +267,7 @@ namespace NavigateItemsPoolForm
                 string msg = message;
 
                 this.FeedbackRichTextBox.Text = msg;
-                //this.FeedbackRichTextBox.BringToFront();
-                this.FeedbackPanel.BringToFront();
-                this.FeedbackPanel.Visible = true;
+                ShowFeedbackPanel();
             }
             catch (Exception ex)
             {
@@ -488,6 +522,9 @@ namespace NavigateItemsPoolForm
                 {
                     verbose = "ERROR";
                     WriteVerbose(verbose, false, "Red");
+                    string message = $"Status: Pipe not connected\r\n" +
+                                     $"Command '{command}' on '{itemCategory}' from '{itemSource}'";
+                    WriteFeedback(message);
                 }
 
                 verbose = "Done Processing";
