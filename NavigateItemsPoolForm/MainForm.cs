@@ -15,7 +15,8 @@ namespace NavigateItemsPoolForm
     {
         System.Text.Encoding Encoding => System.Text.Encoding.UTF8;
         string PipeMessageSeparator => "#";
-        string ClientPipeName => "ItemsPoolPipe8";
+        string ClientPipeName => "ItemsPoolPipe12";
+        Task FeedbackFromServerTask = null;
         System.IO.Pipes.NamedPipeClientStream Pipe = null;
         Task PipeWriteTask = null;
         Color VerboseTextBoxForeColor;
@@ -27,6 +28,7 @@ namespace NavigateItemsPoolForm
             this.ItemsSourceComboBox.SelectedIndex = 0;
             this.NavigationModeCheckedListBox.CheckOnClick = true;
             this.NavigationModeCheckedListBox.SetItemChecked(0, true);
+            FeedbackFromServerTask = HandleFeedbackFromPipeServerStream();
         }
 
         private void OnVerboseTextBoxTextChanged(object sender, EventArgs e)
@@ -121,13 +123,161 @@ namespace NavigateItemsPoolForm
 
                 this.FeedbackLabel.Text = msg;
                 this.FeedbackLabel.BringToFront();
-                
+                var list = new System.Collections.Generic.List<string>();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("WriteFeedback: " + ex.Message);
             }
         }
+
+        private string InterpreteFeedbackFromPipeServerStream(string data)
+        {
+            string message = System.String.Empty;
+
+            try
+            {
+                var strings = data.Split('#');
+                string status = System.String.Empty;
+                string feedback = System.String.Empty;
+                if (strings.Count() > 1)
+                {
+                    feedback = $"Command '{strings[1]}' on " +
+                               $"'{strings[2]}' from " +
+                               $"'{strings[3]}' [{strings[4]}]";
+                    status = strings[0];
+                }
+                else
+                {
+                    feedback = System.String.Empty;
+                    status = strings[0];
+                }
+
+                if (Regex.IsMatch(status, "OK"))
+                {
+                    message = $"{feedback} succeeded";
+                }
+                else if (Regex.IsMatch(status, "ERROR"))
+                {
+                    message = $"{feedback} failed";
+                }
+                else
+                {
+                    message = $"{feedback} met unknown error";
+                }
+            }
+            catch(Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine
+                (
+                    "InterpreteFeedbackFromPipeServerStream: " + ex.Message
+                );
+            }
+
+            return message;
+
+        } // InterpreteFeedbackFromPipeServerStream
+
+        private Task HandleFeedbackFromPipeServerStream()
+        {
+            Task task = Task.Factory.StartNew(new Action(async () =>
+            {
+                try
+                {
+                    bool loop = true;
+                    int size = 1024;
+                    var buffer = new byte[size];
+                    string data = System.String.Empty;
+
+                    if (null == Pipe)
+                    {
+                        Pipe = new System.IO.Pipes.NamedPipeClientStream(ClientPipeName);
+                    }
+
+                    do
+                    {
+                        if (null != Pipe)
+                        {
+                            // Check connection
+                            if (!Pipe.IsConnected)
+                            {
+                                try
+                                {
+                                    Pipe.Connect(1000);
+                                }
+                                catch (Exception ex)
+                                {
+                                    System.Diagnostics.Debug.WriteLine
+                                    (
+                                        "HandleFeedbackFromPipeServerStream: " + ex.Message
+                                    );
+                                }
+                            }
+
+                            if (Pipe.IsConnected)
+                            {
+                                // Clean buffer
+                                for (int i = 0; i < buffer.Count(); i++)
+                                {
+                                    buffer[i] = Encoding.GetBytes("0")[0];
+                                }
+                                // Read data, if any
+                                // Data format: status#command#category#source#execution_date
+                                int offset = 0;
+                                bool loopRead = false;
+
+                                do
+                                {
+                                    var N = await Pipe.ReadAsync(buffer, offset, buffer.Count());
+                                    if ((N > 0) && (N == buffer.Count())) // Possibly more data to read
+                                    {
+                                        loopRead = true;
+                                        offset = N;
+                                        data += Encoding.GetString(buffer);
+                                    }
+                                    else
+                                    {
+                                        loopRead = false;
+                                        offset = 0;
+                                        if (N > 0)
+                                        {
+                                            data += Encoding.GetString(buffer);
+                                        }
+                                    }
+                                }
+                                while (loopRead);
+
+                                // Write feedback to user
+                                if (
+                                    !this.FeedbackPanel.Visible &&
+                                    !System.String.IsNullOrEmpty(data)
+                                )
+                                {
+                                    string message = InterpreteFeedbackFromPipeServerStream(data);
+
+                                    if (!System.String.IsNullOrEmpty(message))
+                                    {
+                                        WriteFeedback(message);
+                                    }
+                                    data = System.String.Empty;
+                                }
+                            }
+                        }
+                    }
+                    while (loop);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine
+                    (
+                        "HandleFeedbackFromPipeServerStream: " + ex.Message
+                    );
+                }
+            }));
+
+            return task;
+
+        } // HandleFeedbackFromPipeServerStream
 
         private void NavigateItemsPool(object itmCategory, object itmSource, string command)
         {
@@ -226,6 +376,6 @@ namespace NavigateItemsPoolForm
             finally
             {
             }
-        }
+        } // NavigateItemsPool
     }
 }
