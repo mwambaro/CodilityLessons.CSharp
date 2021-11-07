@@ -30,6 +30,7 @@ namespace NavigateItemsPoolForm
         private void InitializeComponent()
         {
             this.FeedbackPanel = new System.Windows.Forms.Panel();
+            this.FeedbackPanelOkButton = new System.Windows.Forms.Button();
             this.FeedbackRichTextBox = new System.Windows.Forms.RichTextBox();
             this.VerboseTextBox = new System.Windows.Forms.RichTextBox();
             this.ButtonDownload = new System.Windows.Forms.Button();
@@ -40,7 +41,6 @@ namespace NavigateItemsPoolForm
             this.ItemsSourceComboBox = new System.Windows.Forms.ComboBox();
             this.NavigationModeCheckedListBox = new System.Windows.Forms.CheckedListBox();
             this.ItemsCategoryComboBox = new System.Windows.Forms.ComboBox();
-            this.FeedbackPanelOkButton = new System.Windows.Forms.Button();
             this.FeedbackPanel.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -56,6 +56,16 @@ namespace NavigateItemsPoolForm
             this.FeedbackPanel.Visible = false;
             this.FeedbackPanel.Click += new System.EventHandler(this.OnClickFeedbackPanel);
             // 
+            // FeedbackPanelOkButton
+            // 
+            this.FeedbackPanelOkButton.Location = new System.Drawing.Point(542, 225);
+            this.FeedbackPanelOkButton.Name = "FeedbackPanelOkButton";
+            this.FeedbackPanelOkButton.Size = new System.Drawing.Size(75, 33);
+            this.FeedbackPanelOkButton.TabIndex = 2;
+            this.FeedbackPanelOkButton.Text = "OK";
+            this.FeedbackPanelOkButton.UseVisualStyleBackColor = true;
+            this.FeedbackPanelOkButton.Click += new System.EventHandler(this.OnFeedbackPanelOkButtonClicked);
+            // 
             // FeedbackRichTextBox
             // 
             this.FeedbackRichTextBox.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(64)))), ((int)(((byte)(64)))));
@@ -64,9 +74,9 @@ namespace NavigateItemsPoolForm
             this.FeedbackRichTextBox.Location = new System.Drawing.Point(221, 92);
             this.FeedbackRichTextBox.Name = "FeedbackRichTextBox";
             this.FeedbackRichTextBox.ReadOnly = true;
+            this.FeedbackRichTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.None;
             this.FeedbackRichTextBox.Size = new System.Drawing.Size(164, 67);
             this.FeedbackRichTextBox.TabIndex = 1;
-            this.FeedbackRichTextBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.None;
             this.FeedbackRichTextBox.Text = "Feedback lines go here\nLine 2\nLine 3\nLine 4";
             this.FeedbackRichTextBox.TextChanged += new System.EventHandler(this.OnFeedbackRichTextBoxTextChanged);
             // 
@@ -178,16 +188,6 @@ namespace NavigateItemsPoolForm
             this.ItemsCategoryComboBox.Size = new System.Drawing.Size(121, 21);
             this.ItemsCategoryComboBox.TabIndex = 2;
             this.ItemsCategoryComboBox.SelectedValueChanged += new System.EventHandler(this.OnSelectedValueChanged);
-            // 
-            // FeedbackPanelOkButton
-            // 
-            this.FeedbackPanelOkButton.Location = new System.Drawing.Point(542, 225);
-            this.FeedbackPanelOkButton.Name = "FeedbackPanelOkButton";
-            this.FeedbackPanelOkButton.Size = new System.Drawing.Size(75, 33);
-            this.FeedbackPanelOkButton.TabIndex = 2;
-            this.FeedbackPanelOkButton.Text = "OK";
-            this.FeedbackPanelOkButton.UseVisualStyleBackColor = true;
-            this.FeedbackPanelOkButton.Click += new System.EventHandler(this.OnFeedbackPanelOkButtonClicked);
             // 
             // MainForm
             // 

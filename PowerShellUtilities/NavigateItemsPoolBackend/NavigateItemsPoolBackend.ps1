@@ -15,6 +15,8 @@ $path = Join-Path "$here" "$sut"
 #>
 
 $ProgramDataPath = Join-Path "$Home" "AppData\Local\NavigateItemsPool"
+$ReadAsyncCancellationToken = [System.Threading.CancellationToken]::new($false)
+$WriteAsyncCancellationToken = [System.Threading.CancellationToken]::new($false)
 
 Function Write-Log 
 {
@@ -30,7 +32,7 @@ Function Write-Log
 		[switch]$NoNewLine # Continue from previous line, if Verbose
 	)
 
-	$Function = "$($MyInvocation.MyCommand.Name)"
+	$FunctionName = "$($MyInvocation.MyCommand.Name)"
 
 	try 
 	{
@@ -48,12 +50,12 @@ Function Write-Log
 		{
 			$LineFeed = "`n"
 			$message =  "$(Get-Date): $LineFeed"
-			$message += "	Reason:      $($Exception.CategoryInfo.Reason) $LineFeed"
-			$message += "	Function:    $Function $LineFeed"
-			$message += "   Script:      $ScriptName $LineFeed"
-			$message += "   Script line: $($Exception.InvocationInfo.ScriptLineNumber) $LineFeed"
-			$message += "   Message:     $($Exception.Exception.Message) $LineFeed"
-			$message += "	Line code:   $($Exception.InvocationInfo.Line)"
+			$message += "    Reason:      $($Exception.CategoryInfo.Reason) $LineFeed"
+			$message += "    Function:    $Function $LineFeed"
+			$message += "    Script:      $ScriptName $LineFeed"
+			$message += "    Script line: $($Exception.InvocationInfo.ScriptLineNumber) $LineFeed"
+			$message += "    Line code:   $($Exception.InvocationInfo.Line.Trim()) $LineFeed"
+			$message += "    Message:     $($Exception.Exception.Message)"
 		}
 		elseif($LogType -eq 'Verbose')
 		{
@@ -120,7 +122,7 @@ Function Write-Log
 	}
 	catch 
 	{
-		Write-Output "$($Function): $($_.CategoryInfo.Reason); $($_.Exception.Message)"
+		Write-Output "$($FunctionName): $($_.CategoryInfo.Reason); $($_.Exception.Message)"
 	}
 
 } # Write-Log 
@@ -335,6 +337,11 @@ Function Confirm-ExecuteCommandToFrontend
 				$Feedback = "ERROR#$Data"
 			}
 			WriteTo-ClientPipeStream -ServerPipe $Pipe -Feedback $Feedback | Out-Null
+			# Flip write async cancellation token
+			[System.Threading.Tasks.Task]::Delay(2000)
+			$WriteAsyncCancellationToken = [System.Threading.CancellationToken]::new($true)
+			[System.Threading.Tasks.Task]::Delay(2000)
+			$WriteAsyncCancellationToken = [System.Threading.CancellationToken]::new($false)
 		}
 		catch
 		{
@@ -389,9 +396,20 @@ Function WriteTo-ClientPipeStream
 			# Write data 
 			$Encoding = [System.Text.Encoding]::UTF8 
 			$Buffer = $Encoding.GetBytes($Feedback) 
-			$PipeServer.Write($Buffer, 0, $Buffer.Count)
+			$Task = $PipeServer.WriteAsync($Buffer, 0, $Buffer.Count, $WriteAsyncCancellationToken)
 
-			Write-Log -LogType 'Verbose' -LogMessage "Done" -NoNewLine 
+			if($Task.IsCompleted) 
+			{
+				Write-Log -LogType 'Verbose' -LogMessage "Done" -NoNewLine 
+			}
+			elseif($Task.IsCanceled)
+			{
+				throw "Pipe server stream write task is canceled"
+			}
+			elseif($Task.IsFaulted)
+			{
+				throw "Pipe server stream write task is faulted"
+			}
 		}
 	} 
 	catch 
@@ -448,21 +466,33 @@ Function ReadFrom-ClientPipeStream
 			$loop = $false
 			do 
 			{
+				$N = 0
 				try 
 				{
-					$N = 0
 					$Buffer = Initialize-Buffer -Buffer $Buffer
-					$N = $ServerPipe.Read($Buffer, $offset, $Buffer.Count) 
-					if($N -gt 0 -and $N -eq $Buffer.Count) # There may be more data to read
+					$Task = $ServerPipe.ReadAsync($Buffer, $offset, $Buffer.Count, $ReadAsyncCancellationToken) 
+					if($Task.IsCompleted)
 					{
-						$offset = $N
-						$loop = $false
-						Write-Log -LogType 'Verbose' -LogMessage "OK [More data?] " -NoNewLine
+						$N = $Task.Result
+						if($N -gt 0 -and $N -eq $Buffer.Count) # There may be more data to read
+						{
+							$offset = $N
+							$loop = $true
+							Write-Log -LogType 'Verbose' -LogMessage "OK [More data?] " -NoNewLine
+						}
+						else 
+						{
+							$loop = $false 
+							$offset = 0
+						}
 					}
-					else 
+					elseif($Task.IsCanceled)
 					{
-						$loop = $false 
-						$offset = 0
+						throw "Pipe server stream read task is cancelled"
+					}
+					elseif($Task.IsFaulted)
+					{
+						throw "Pipe server stream read task is faulted"
 					}
 				}
 				catch 
@@ -482,19 +512,26 @@ Function ReadFrom-ClientPipeStream
 				}
 			}
 			while($loop)
-
-			$EventArgs = Interprete-PipeData -PipeData "$data"
-			# Add pipe object
-			$EventArgs["Pipe"] = $ServerPipe
-			# Build splatted parameters for the event
-			$EventParams = @{
-				Sender = $ServerPipe;
-				SourceIdentifier = $InterpretedEventSrcId;
-				EventArguments = $EventArgs;
+			
+			if(-not [System.String]::IsNullOrEmpty($data))
+			{
+				$EventArgs = Interprete-PipeData -PipeData "$data"
+				# Add pipe object
+				$EventArgs["Pipe"] = $ServerPipe
+				# Build splatted parameters for the event
+				$EventParams = @{
+					Sender = $ServerPipe;
+					SourceIdentifier = $InterpretedEventSrcId;
+					EventArguments = $EventArgs;
+				}
+				# Fire the event
+				$x = New-Event @EventParams
+				$EventData = $EventArgs
 			}
-			# Fire the event
-			$x = New-Event @EventParams
-			$EventData = $EventArgs
+		}
+		else 
+		{
+			Write-Log -LogType 'Verbose' -LogMessage "Disconnected" -NoNewLine
 		}
 		
 	}
@@ -547,8 +584,11 @@ Function Interprete-CommandFromFrontend
 				Write-Log -LogType 'Verbose' -LogMessage "Starting Interpreter script block execution ..."
 			
 				$PipeDirection = [System.IO.Pipes.PipeDirection]::InOut
-				$ServerPipe = [System.IO.Pipes.NamedPipeServerStream]::new($ServerPipeName, $PipeDirection)
-
+				$MaxInstances = 100
+				$TransmissionMode = [System.IO.Pipes.PipeTransmissionMode]::Message 
+				$PipeOption = [System.IO.Pipes.PipeOptions]::Asynchronous
+				$ServerPipe = [System.IO.Pipes.NamedPipeServerStream]::new($ServerPipeName, $PipeDirection, $MaxInstances, $TransmissionMode, $PipeOption)
+				
 				if($ServerPipe)
 				{
 					Write-Log -LogType 'Verbose' -LogMessage "Server Pipe created."
@@ -556,7 +596,20 @@ Function Interprete-CommandFromFrontend
 					$loop = $true
 					do 
 					{
-						$EvData = ReadFrom-ClientPipeStream -ServerPipe $ServerPipe
+						try 
+						{
+							$EvData = $ServerPipe | ReadFrom-ClientPipeStream
+						} 
+						catch 
+						{
+							Write-Log -Function "ReadFrom-ClientPipeStream" -Exception $_
+						}
+
+						# Flip read async cancellation token
+						[System.Threading.Tasks.Task]::Delay(2000)
+						$ReadAsyncCancellationToken = [System.Threading.CancellationToken]::new($true)
+						[System.Threading.Tasks.Task]::Delay(2000)
+						$ReadAsyncCancellationToken = [System.Threading.CancellationToken]::new($false)
 					}
 					while($loop)
 

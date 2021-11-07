@@ -14,17 +14,24 @@ namespace NavigateItemsPoolForm
 {
     public partial class MainForm : Form
     {
+        #region Properties and Fields
+
         System.Text.Encoding Encoding => System.Text.Encoding.UTF8;
         string PipeMessageSeparator => "#";
-        string ClientPipeName => "ItemsPoolPipe12";
+        string ServerPipeName => "."; // Remote computer, '.' for local
+        string ClientPipeName => "ItemsPoolPipeServer";
         int FeedbackDelayInMilliseconds => 10000;
+        Stack<string> FeedbackMessages => new Stack<string>();
         CancellationToken FeedbackCancellationToken = new CancellationToken(false);
         Task FeedbackFromServerTask = null;
         System.Drawing.Size ReferenceTextCharacterSize = default;
         System.IO.Pipes.NamedPipeClientStream Pipe = null;
-        List<Task> PipeWriteTasks = null;
+        List<Task> PipeWriteTasks = new List<Task>();
         Task PipeFeedbackTask = null;
         Color VerboseTextBoxForeColor;
+        event EventHandler FeedbackAvailableRaised;
+
+        #endregion
 
         public MainForm()
         {
@@ -33,11 +40,14 @@ namespace NavigateItemsPoolForm
             this.ItemsSourceComboBox.SelectedIndex = 0;
             this.NavigationModeCheckedListBox.CheckOnClick = true;
             this.NavigationModeCheckedListBox.SetItemChecked(0, true);
+            this.FeedbackAvailableRaised += new System.EventHandler(this.OnFeedbackAvailableRaised);
             FeedbackFromServerTask = HandleFeedbackFromPipeServerStream();
             PipeFeedbackTask = GiveFeedbackToUiInput();
             ReferenceTextCharacterSize = AssessTextCharacterSize();
 
         } // MainForm
+
+        #region Event Handlers
 
         private void OnVerboseTextBoxTextChanged(object sender, EventArgs e)
         {
@@ -143,6 +153,50 @@ namespace NavigateItemsPoolForm
             }
 
         } // OnFeedbackRichTextBoxTextChanged
+
+        private async void OnFeedbackAvailableRaised(object sender, EventArgs e)
+        {
+            try
+            {
+                var form = sender as MainForm;
+                string message = System.String.Empty;
+                if(form.FeedbackMessages.Count > 0)
+                {
+                    message = form.FeedbackMessages.Pop();
+                }
+                
+                if (!System.String.IsNullOrEmpty(message))
+                {
+                    // Hide any visible feedback panel
+                    HideFeedbackPanel();
+                    // Show fresh feedback panel
+                    WriteFeedback(message);
+                    if (
+                        this.FeedbackPanel.Visible &&
+                        this.FeedbackRichTextBox.Visible
+                    )
+                    {
+                        await Task.Delay
+                        (
+                            FeedbackDelayInMilliseconds,
+                            FeedbackCancellationToken
+                        );
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine
+                (
+                    "OnFeedbackAvailableRaised: " + ex.Message
+                );
+            }
+
+        } // OnFeedbackAvailableRaised
+
+        #endregion
+
+        #region Helper Methods
 
         private void HideFeedbackPanel()
         { 
@@ -331,7 +385,7 @@ namespace NavigateItemsPoolForm
 
         private Task HandleFeedbackFromPipeServerStream()
         {
-            Task task = Task.Factory.StartNew(new Action(async () =>
+            Task task = Task.Factory.StartNew(new Action( () =>
             {
                 try
                 {
@@ -342,7 +396,12 @@ namespace NavigateItemsPoolForm
 
                     if (null == Pipe)
                     {
-                        Pipe = new System.IO.Pipes.NamedPipeClientStream(ClientPipeName);
+                        Pipe = new System.IO.Pipes.NamedPipeClientStream
+                        (
+                            ServerPipeName, ClientPipeName, 
+                            System.IO.Pipes.PipeDirection.InOut,
+                            System.IO.Pipes.PipeOptions.Asynchronous
+                        );
                     }
 
                     do
@@ -360,7 +419,7 @@ namespace NavigateItemsPoolForm
                                 {
                                     System.Diagnostics.Debug.WriteLine
                                     (
-                                        "HandleFeedbackFromPipeServerStream: " + ex.Message
+                                        "HandleFeedbackFromPipeServerStream#Connect: " + ex.Message
                                     );
                                 }
                             }
@@ -379,21 +438,40 @@ namespace NavigateItemsPoolForm
 
                                 do
                                 {
-                                    var N = await Pipe.ReadAsync(buffer, offset, buffer.Count());
-                                    if ((N > 0) && (N == buffer.Count())) // Possibly more data to read
+                                    try
                                     {
-                                        loopRead = true;
-                                        offset = N;
-                                        data += Encoding.GetString(buffer);
-                                    }
-                                    else
-                                    {
-                                        loopRead = false;
-                                        offset = 0;
-                                        if (N > 0)
+                                        var T = Pipe.ReadAsync
+                                        (
+                                            buffer, offset, buffer.Count()
+                                        );
+                                        if (T.IsCompleted)
                                         {
-                                            data += Encoding.GetString(buffer);
+                                            int N = T.Result;
+                                            // Possibly more data to read
+                                            if ((N > 0) && (N == buffer.Count())) 
+                                            {
+                                                loopRead = true;
+                                                offset = N;
+                                                data += Encoding.GetString(buffer);
+                                            }
+                                            else
+                                            {
+                                                loopRead = false;
+                                                offset = 0;
+                                                if (N > 0)
+                                                {
+                                                    data += Encoding.GetString(buffer);
+                                                }
+                                            }
                                         }
+                                    }
+                                    catch(Exception ex)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine
+                                        (
+                                            "HandleFeedbackFromPipeServerStream#ReadAsync: " + 
+                                            ex.Message
+                                        );
                                     }
                                 }
                                 while (loopRead);
@@ -401,25 +479,14 @@ namespace NavigateItemsPoolForm
                                 // Write feedback to user
                                 if (!System.String.IsNullOrEmpty(data))
                                 {
-                                    string message = InterpreteFeedbackFromPipeServerStream(data);
+                                    string message = 
+                                    InterpreteFeedbackFromPipeServerStream(data);
 
-                                    if (!System.String.IsNullOrEmpty(message))
-                                    {
-                                        // Hide any visible feedback panel
-                                        HideFeedbackPanel();
-                                        // Show fresh feedback panel
-                                        WriteFeedback(message);
-                                        if (
-                                            this.FeedbackPanel.Visible && 
-                                            this.FeedbackRichTextBox.Visible
-                                        ){
-                                            await Task.Delay
-                                            (
-                                                FeedbackDelayInMilliseconds,
-                                                FeedbackCancellationToken
-                                            );
-                                        }
-                                    }
+                                    // Fire feedback event
+                                    this.FeedbackMessages.Push(message);
+                                    EventArgs e = new EventArgs();
+                                    FeedbackAvailableRaised(this, e);
+
                                     data = System.String.Empty;
                                 }
                             }
@@ -495,20 +562,10 @@ namespace NavigateItemsPoolForm
                                 richText += $"{line}\r\n";
                             }
 
-                            // Hide any visible feedback panel
-                            HideFeedbackPanel();
-                            // Show fresh feedback panel
-                            WriteFeedback(richText);
-                            lines.Clear();
-                            if(
-                                this.FeedbackPanel.Visible && 
-                                this.FeedbackRichTextBox.Visible
-                            ){
-                                Task.Delay
-                                (
-                                    FeedbackDelayInMilliseconds, FeedbackCancellationToken
-                                );
-                            }
+                            // Fire feedback event
+                            this.FeedbackMessages.Push(richText);
+                            EventArgs e = new EventArgs();
+                            FeedbackAvailableRaised(this, e);
                         }
 
                     }
@@ -538,7 +595,12 @@ namespace NavigateItemsPoolForm
 
                 if (null == Pipe)
                 {
-                    Pipe = new System.IO.Pipes.NamedPipeClientStream(ClientPipeName);// "FormPipe", System.IO.Pipes.PipeDirection.InOut);
+                    Pipe = new System.IO.Pipes.NamedPipeClientStream
+                    (
+                        ServerPipeName, ClientPipeName, 
+                        System.IO.Pipes.PipeDirection.InOut,
+                        System.IO.Pipes.PipeOptions.Asynchronous
+                    );
                 }
 
                 if (!Pipe.IsConnected)
@@ -561,7 +623,7 @@ namespace NavigateItemsPoolForm
                 if (Pipe.IsConnected)
                 {
                     verbose = "OK";
-                    WriteVerbose(verbose, false, "Red");
+                    WriteVerbose(verbose, false, "Green");
 
                     string message = command + PipeMessageSeparator + 
                                      itemCategory + PipeMessageSeparator + 
@@ -569,7 +631,7 @@ namespace NavigateItemsPoolForm
 
                     var buffer = Encoding.GetBytes(message);
                     int size = buffer.Count();
-                    var task = Pipe.WriteAsync(buffer, 0, size);
+                    var task = Pipe.WriteAsync(buffer, 0, size); 
                     PipeWriteTasks.Add(task);
                 }
                 else
@@ -593,5 +655,7 @@ namespace NavigateItemsPoolForm
             }
 
         } // NavigateItemsPool
+
+        #endregion
     }
 }
