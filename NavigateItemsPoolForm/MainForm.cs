@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -16,6 +17,8 @@ namespace NavigateItemsPoolForm
         System.Text.Encoding Encoding => System.Text.Encoding.UTF8;
         string PipeMessageSeparator => "#";
         string ClientPipeName => "ItemsPoolPipe12";
+        int FeedbackDelayInMilliseconds => 10000;
+        CancellationToken FeedbackCancellationToken = new CancellationToken(false);
         Task FeedbackFromServerTask = null;
         System.Drawing.Size ReferenceTextCharacterSize = default;
         System.IO.Pipes.NamedPipeClientStream Pipe = null;
@@ -33,7 +36,8 @@ namespace NavigateItemsPoolForm
             FeedbackFromServerTask = HandleFeedbackFromPipeServerStream();
             PipeFeedbackTask = GiveFeedbackToUiInput();
             ReferenceTextCharacterSize = AssessTextCharacterSize();
-        }
+
+        } // MainForm
 
         private void OnVerboseTextBoxTextChanged(object sender, EventArgs e)
         {
@@ -45,7 +49,8 @@ namespace NavigateItemsPoolForm
             {
                 System.Diagnostics.Debug.WriteLine("OnVerboseTextBoxTextChanged: " + ex.Message);
             }
-        }
+
+        } // OnVerboseTextBoxTextChanged
 
         private void OnCommandButtonClicked(object sender, EventArgs e)
         {
@@ -60,13 +65,15 @@ namespace NavigateItemsPoolForm
             {
                 System.Diagnostics.Debug.WriteLine("OnCommandButtonClicked: " + ex.Message);
             }
-        }
+
+        } // OnCommandButtonClicked
 
         private void OnFeedbackPanelOkButtonClicked(object sender, EventArgs e)
         {
             try
             {
                 HideFeedbackPanel();
+                FeedbackCancellationToken = new CancellationToken(true);
             }
             catch(Exception ex)
             {
@@ -81,15 +88,15 @@ namespace NavigateItemsPoolForm
         private void OnSelectedValueChanged(object sender, EventArgs e)
         {
             System.Windows.Forms.ComboBox box = sender as System.Windows.Forms.ComboBox;
-        }
+
+        } // OnSelectedValueChanged
 
         private void OnClickFeedbackPanel(object sender, EventArgs e)
         {
             try
             {
-                var layout = sender as Panel;
-                layout.SendToBack();
-                layout.Visible = false;
+                HideFeedbackPanel();
+                FeedbackCancellationToken = new CancellationToken(true);
             }
             catch (Exception ex)
             {
@@ -207,7 +214,7 @@ namespace NavigateItemsPoolForm
         ///     Assesses the view port size of a text character according to original font
         /// </summary>
         /// <param name="reference"> Reference RichTextBox object mocked in UI visual design </param>
-        /// <returns></returns>
+        /// <returns>Size object of a rich text character </returns>
         /// <details>
         ///     Must run when we know the text fits well in reference text box.
         ///     For example, in constructor, after components initialization,
@@ -225,9 +232,15 @@ namespace NavigateItemsPoolForm
                 }
 
                 var textSize = RichTextAreaSize(reference.Text);
-                // Reference character font size
-                int height = (int)Math.Ceiling((double)reference.Size.Height / (double)textSize["Height"]);
-                int width = (int)Math.Ceiling((double)reference.Size.Width / (double)textSize["Width"]);
+                // Reference rich text character font size
+                int height = (int)Math.Ceiling
+                (
+                    (double)reference.Size.Height / (double)textSize["Height"]
+                );
+                int width = (int)Math.Ceiling
+                (
+                    (double)reference.Size.Width / (double)textSize["Width"]
+                );
 
                 Size = new Size(width, height);
             }
@@ -266,8 +279,13 @@ namespace NavigateItemsPoolForm
             {
                 string msg = message;
 
+                // Show feedback
                 this.FeedbackRichTextBox.Text = msg;
                 ShowFeedbackPanel();
+                // Flip feedback cancellation token
+                FeedbackCancellationToken = new CancellationToken(true);
+                Task.Delay(1000);
+                FeedbackCancellationToken = new CancellationToken(false);
             }
             catch (Exception ex)
             {
@@ -387,7 +405,20 @@ namespace NavigateItemsPoolForm
 
                                     if (!System.String.IsNullOrEmpty(message))
                                     {
+                                        // Hide any visible feedback panel
+                                        HideFeedbackPanel();
+                                        // Show fresh feedback panel
                                         WriteFeedback(message);
+                                        if (
+                                            this.FeedbackPanel.Visible && 
+                                            this.FeedbackRichTextBox.Visible
+                                        ){
+                                            await Task.Delay
+                                            (
+                                                FeedbackDelayInMilliseconds,
+                                                FeedbackCancellationToken
+                                            );
+                                        }
                                     }
                                     data = System.String.Empty;
                                 }
@@ -423,21 +454,32 @@ namespace NavigateItemsPoolForm
                         {
                             string msg = "Command '{}' on '{}' from '{}'";
                             string status = System.String.Empty;
-                            if (task.IsCanceled)
+                            try
                             {
-                                status = "Status: Canceled";
-                                PipeWriteTasks.Remove(task);
+                                if (task.IsCanceled)
+                                {
+                                    status = "Status: Canceled";
+                                    PipeWriteTasks.Remove(task);
+                                }
+                                else if (task.IsFaulted)
+                                {
+                                    status = "Status: Faulted";
+                                    PipeWriteTasks.Remove(task);
+                                }
+                                else if (task.IsCompleted)
+                                {
+                                    status = "Status: Completed";
+                                    PipeWriteTasks.Remove(task);
+                                }
                             }
-                            else if (task.IsFaulted)
+                            catch(Exception ex)
                             {
-                                status = "Status: Faulted";
-                                PipeWriteTasks.Remove(task);
+                                System.Diagnostics.Debug.WriteLine
+                                (
+                                    "GiveFeedbackToUiInput#TaskAction: " + ex.Message
+                                );
                             }
-                            else if (task.IsCompleted)
-                            {
-                                status = "Status: Completed";
-                                PipeWriteTasks.Remove(task);
-                            }
+
                             if(System.String.IsNullOrEmpty(status))
                             {
                                 lines.Add(status);
@@ -452,11 +494,23 @@ namespace NavigateItemsPoolForm
                             {
                                 richText += $"{line}\r\n";
                             }
+
+                            // Hide any visible feedback panel
+                            HideFeedbackPanel();
+                            // Show fresh feedback panel
                             WriteFeedback(richText);
                             lines.Clear();
+                            if(
+                                this.FeedbackPanel.Visible && 
+                                this.FeedbackRichTextBox.Visible
+                            ){
+                                Task.Delay
+                                (
+                                    FeedbackDelayInMilliseconds, FeedbackCancellationToken
+                                );
+                            }
                         }
 
-                        Task.Delay(500);
                     }
                 }
                 catch(Exception ex)
