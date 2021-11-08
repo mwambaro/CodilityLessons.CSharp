@@ -14,6 +14,12 @@ namespace NavigateItemsPoolForm
 {
     public partial class MainForm : Form
     {
+        #region Delegates or/and Events
+
+        delegate void AsyncOperationReturn(object sender, string operation);
+
+        #endregion
+
         #region Properties and Fields
 
         System.Text.Encoding Encoding => System.Text.Encoding.UTF8;
@@ -21,15 +27,14 @@ namespace NavigateItemsPoolForm
         string ServerPipeName => "."; // Remote computer, '.' for local
         string ClientPipeName => "ItemsPoolPipeServer";
         int FeedbackDelayInMilliseconds => 10000;
-        Stack<string> FeedbackMessages => new Stack<string>();
+
+        CancellationToken PipeReadCancellationToken = new CancellationToken(false);
         CancellationToken FeedbackCancellationToken = new CancellationToken(false);
         Task FeedbackFromServerTask = null;
         System.Drawing.Size ReferenceTextCharacterSize = default;
         System.IO.Pipes.NamedPipeClientStream Pipe = null;
-        List<Task> PipeWriteTasks = new List<Task>();
-        Task PipeFeedbackTask = null;
         Color VerboseTextBoxForeColor;
-        event EventHandler FeedbackAvailableRaised;
+        event AsyncOperationReturn PipeWriteAsyncReturn;
 
         #endregion
 
@@ -40,10 +45,8 @@ namespace NavigateItemsPoolForm
             this.ItemsSourceComboBox.SelectedIndex = 0;
             this.NavigationModeCheckedListBox.CheckOnClick = true;
             this.NavigationModeCheckedListBox.SetItemChecked(0, true);
-            this.FeedbackAvailableRaised += new System.EventHandler(this.OnFeedbackAvailableRaised);
-            FeedbackFromServerTask = HandleFeedbackFromPipeServerStream();
-            PipeFeedbackTask = GiveFeedbackToUiInput();
             ReferenceTextCharacterSize = AssessTextCharacterSize();
+            PipeWriteAsyncReturn += new AsyncOperationReturn(this.OnReturningFromAsyncPipeOperation);
 
         } // MainForm
 
@@ -154,45 +157,123 @@ namespace NavigateItemsPoolForm
 
         } // OnFeedbackRichTextBoxTextChanged
 
-        private async void OnFeedbackAvailableRaised(object sender, EventArgs e)
+        /// <summary>
+        ///     Responds to a returning from a WriteAsync pipe operation by giving
+        ///     feedback to User and waiting server's feedback.
+        /// </summary>
+        /// <param name="sender"> The async pipe task </param>
+        /// <param name="operation"> Specifies the command string </param>
+        private void OnReturningFromAsyncPipeOperation(object sender, string operation)
         {
             try
             {
-                var form = sender as MainForm;
-                string message = System.String.Empty;
-                if(form.FeedbackMessages.Count > 0)
+                Task task = sender as Task;
+
+                WriteVerbose($"Feedback UI to {{{operation}}} ... ", true);
+
+                // Some milliseconds to complete and we are good
+                Task.Delay(1000);
+                // Give feedback for async task operation
+                GiveFeedbackToUiInput(task, operation);
+
+                WriteVerbose("OK");
+
+                // Wait for server's feedback
+                int size = 1024;
+                var buffer = new byte[size];
+                string data = System.String.Empty;
+
+                if (null == Pipe)
                 {
-                    message = form.FeedbackMessages.Pop();
+                    return;
                 }
+
+                WriteVerbose("Waiting for response from server ... ", true);
                 
-                if (!System.String.IsNullOrEmpty(message))
+                // Check connection
+                if (!Pipe.IsConnected)
                 {
-                    // Hide any visible feedback panel
-                    HideFeedbackPanel();
-                    // Show fresh feedback panel
-                    WriteFeedback(message);
-                    if (
-                        this.FeedbackPanel.Visible &&
-                        this.FeedbackRichTextBox.Visible
-                    )
+                    try
                     {
-                        await Task.Delay
+                        Pipe.Connect(1000);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine
                         (
-                            FeedbackDelayInMilliseconds,
-                            FeedbackCancellationToken
+                            "OnReturningFromAsyncPipeOperation#Connect: " + ex.Message
                         );
                     }
                 }
+
+                if (Pipe.IsConnected)
+                {
+                    // Clean buffer
+                    for (int i = 0; i < buffer.Count(); i++)
+                    {
+                        buffer[i] = Encoding.GetBytes("0")[0];
+                    }
+                    // Read data, if any
+                    // Data format: status#command#category#source#execution_date
+                    try
+                    {
+                        // Some milliseconds for the server to respond and we are good
+                        Task.Delay(5000);
+                        var T = Pipe.ReadAsync
+                        (
+                            buffer, 0, 1, PipeReadCancellationToken
+                        );
+                        if (T.IsCompleted)
+                        {
+                            int N = T.Result;
+                            if (N > 0)
+                            {
+                                data += Encoding.GetString(buffer);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine
+                        (
+                            "OnReturningFromAsyncPipeOperation#ReadAsync: " +
+                            ex.Message
+                        );
+                    }
+
+                    // Write feedback to user
+                    if (!System.String.IsNullOrEmpty(data))
+                    {
+                        WriteVerbose("OK");
+
+                        string message =
+                        InterpreteFeedbackFromPipeServerStream(data);
+
+                        // Fire feedback event
+                        GiveFeedbackToUiInput(task, message, false);
+
+                        data = System.String.Empty;
+                    }
+                    else
+                    {
+                        WriteVerbose("No Response");
+                    }
+                }
+                else
+                {
+                    WriteVerbose("Disconnected");
+                }
+                
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine
                 (
-                    "OnFeedbackAvailableRaised: " + ex.Message
+                    "OnReturningFromAsyncPipeOperation: " + ex.Message
                 );
             }
 
-        } // OnFeedbackAvailableRaised
+        } // OnReturningFromAsyncPipeOperation
 
         #endregion
 
@@ -338,7 +419,7 @@ namespace NavigateItemsPoolForm
                 ShowFeedbackPanel();
                 // Flip feedback cancellation token
                 FeedbackCancellationToken = new CancellationToken(true);
-                Task.Delay(1000);
+                Task.Delay(500);
                 FeedbackCancellationToken = new CancellationToken(false);
             }
             catch (Exception ex)
@@ -383,191 +464,57 @@ namespace NavigateItemsPoolForm
 
         } // InterpreteFeedbackFromPipeServerStream
 
-        private Task HandleFeedbackFromPipeServerStream()
+        private void GiveFeedbackToUiInput(Task task, string operation, bool noStatus=true)
         {
-            Task task = Task.Factory.StartNew(new Action( () =>
-            {
-                try
+            try
+            { 
+                string msg = operation;
+                string status = System.String.Empty;
+                if (noStatus)
                 {
-                    bool loop = true;
-                    int size = 1024;
-                    var buffer = new byte[size];
-                    string data = System.String.Empty;
-
-                    if (null == Pipe)
+                    try
                     {
-                        Pipe = new System.IO.Pipes.NamedPipeClientStream
+                        if (task.IsCanceled)
+                        {
+                            status = "Status: Canceled";
+                        }
+                        else if (task.IsFaulted)
+                        {
+                            status = "Status: Faulted";
+                        }
+                        else if (task.IsCompleted)
+                        {
+                            status = "Status: Completed";
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine
                         (
-                            ServerPipeName, ClientPipeName, 
-                            System.IO.Pipes.PipeDirection.InOut,
-                            System.IO.Pipes.PipeOptions.Asynchronous
+                            "GiveFeedbackToUiInput: " + ex.Message
                         );
                     }
 
-                    do
+                    if (!string.IsNullOrEmpty(status) && !string.IsNullOrEmpty(operation))
                     {
-                        if (null != Pipe)
-                        {
-                            // Check connection
-                            if (!Pipe.IsConnected)
-                            {
-                                try
-                                {
-                                    Pipe.Connect(1000);
-                                }
-                                catch (Exception ex)
-                                {
-                                    System.Diagnostics.Debug.WriteLine
-                                    (
-                                        "HandleFeedbackFromPipeServerStream#Connect: " + ex.Message
-                                    );
-                                }
-                            }
+                        string richText = $"{status}\r\n{operation}";
 
-                            if (Pipe.IsConnected)
-                            {
-                                // Clean buffer
-                                for (int i = 0; i < buffer.Count(); i++)
-                                {
-                                    buffer[i] = Encoding.GetBytes("0")[0];
-                                }
-                                // Read data, if any
-                                // Data format: status#command#category#source#execution_date
-                                int offset = 0;
-                                bool loopRead = false;
-
-                                do
-                                {
-                                    try
-                                    {
-                                        var T = Pipe.ReadAsync
-                                        (
-                                            buffer, offset, 1
-                                        );
-                                        if (T.IsCompleted)
-                                        {
-                                            int N = T.Result;
-                                            if (N > 0) 
-                                            {
-                                                data += Encoding.GetString(buffer);
-                                            }
-                                        }
-                                    }
-                                    catch(Exception ex)
-                                    {
-                                        System.Diagnostics.Debug.WriteLine
-                                        (
-                                            "HandleFeedbackFromPipeServerStream#ReadAsync: " + 
-                                            ex.Message
-                                        );
-                                    }
-                                }
-                                while (loopRead);
-
-                                // Write feedback to user
-                                if (!System.String.IsNullOrEmpty(data))
-                                {
-                                    string message = 
-                                    InterpreteFeedbackFromPipeServerStream(data);
-
-                                    // Fire feedback event
-                                    this.FeedbackMessages.Push(message);
-                                    EventArgs e = new EventArgs();
-                                    FeedbackAvailableRaised(this, e);
-
-                                    data = System.String.Empty;
-                                }
-                            }
-                        }
+                        WriteFeedback(richText);
                     }
-                    while (loop);
                 }
-                catch (Exception ex)
+                else
                 {
-                    System.Diagnostics.Debug.WriteLine
-                    (
-                        "HandleFeedbackFromPipeServerStream: " + ex.Message
-                    );
+                    WriteFeedback(operation);
                 }
-            }));
 
-            return task;
-
-        } // HandleFeedbackFromPipeServerStream
-
-        private Task GiveFeedbackToUiInput()
-        {
-            var ftask = Task.Factory.StartNew(new Action(() =>
+            }
+            catch(Exception ex)
             {
-                try
-                {
-                    while (true)
-                    {
-                        var tasks = PipeWriteTasks.Take(PipeWriteTasks.Count()); // Clone
-                        var lines = new List<string>();
-                        foreach (Task task in tasks)
-                        {
-                            string msg = "Command '{}' on '{}' from '{}'";
-                            string status = System.String.Empty;
-                            try
-                            {
-                                if (task.IsCanceled)
-                                {
-                                    status = "Status: Canceled";
-                                    PipeWriteTasks.Remove(task);
-                                }
-                                else if (task.IsFaulted)
-                                {
-                                    status = "Status: Faulted";
-                                    PipeWriteTasks.Remove(task);
-                                }
-                                else if (task.IsCompleted)
-                                {
-                                    status = "Status: Completed";
-                                    PipeWriteTasks.Remove(task);
-                                }
-                            }
-                            catch(Exception ex)
-                            {
-                                System.Diagnostics.Debug.WriteLine
-                                (
-                                    "GiveFeedbackToUiInput#TaskAction: " + ex.Message
-                                );
-                            }
-
-                            if(System.String.IsNullOrEmpty(status))
-                            {
-                                lines.Add(status);
-                                lines.Add(msg);
-                            }
-                        }
-
-                        if(lines.Count() > 0)
-                        {
-                            string richText = System.String.Empty;
-                            foreach(string line in lines)
-                            {
-                                richText += $"{line}\r\n";
-                            }
-
-                            // Fire feedback event
-                            this.FeedbackMessages.Push(richText);
-                            EventArgs e = new EventArgs();
-                            FeedbackAvailableRaised(this, e);
-                        }
-
-                    }
-                }
-                catch(Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine
-                    (
-                        "GiveFeedbackToUiInput: " + ex.Message
-                    );
-                }
-            }));
-            
-            return ftask;
+                System.Diagnostics.Debug.WriteLine
+                (
+                    "GiveFeedbackToUiInput: " + ex.Message
+                );
+            }
 
         } // GiveFeedbackToUiInput
 
@@ -618,8 +565,10 @@ namespace NavigateItemsPoolForm
                                      itemSource;
 
                     var buffer = Encoding.GetBytes(message);
-                    var task = Pipe.WriteAsync(buffer, 0, 1); 
-                    PipeWriteTasks.Add(task);
+                    var task = Pipe.WriteAsync(buffer, 0, 1);
+
+                    string operation = $"'{command}' on '{itemCategory}' from '{itemSource}'";
+                    PipeWriteAsyncReturn(task, operation);
                 }
                 else
                 {
