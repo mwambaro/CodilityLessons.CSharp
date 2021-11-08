@@ -338,9 +338,9 @@ Function Confirm-ExecuteCommandToFrontend
 			}
 			WriteTo-ClientPipeStream -ServerPipe $Pipe -Feedback $Feedback | Out-Null
 			# Flip write async cancellation token
-			[System.Threading.Tasks.Task]::Delay(2000)
+			[System.Threading.Tasks.Task]::Delay(1000)
 			$WriteAsyncCancellationToken = [System.Threading.CancellationToken]::new($true)
-			[System.Threading.Tasks.Task]::Delay(2000)
+			[System.Threading.Tasks.Task]::Delay(1000)
 			$WriteAsyncCancellationToken = [System.Threading.CancellationToken]::new($false)
 		}
 		catch
@@ -373,6 +373,11 @@ Function WriteTo-ClientPipeStream
 
 	try 
 	{
+		if(-not $ServerPipe.CanWrite)
+		{
+			throw "Server pipe does not have write capability"
+		}
+
 		Write-Log -LogType 'Verbose' -LogMessage "Waiting for incoming connection ... "
 						
 		# Check connection
@@ -396,7 +401,7 @@ Function WriteTo-ClientPipeStream
 			# Write data 
 			$Encoding = [System.Text.Encoding]::UTF8 
 			$Buffer = $Encoding.GetBytes($Feedback) 
-			$Task = $PipeServer.WriteAsync($Buffer, 0, $Buffer.Count, $WriteAsyncCancellationToken)
+			$Task = $PipeServer.WriteAsync($Buffer, 0, 1, $WriteAsyncCancellationToken)
 
 			if($Task.IsCompleted) 
 			{
@@ -437,6 +442,11 @@ Function ReadFrom-ClientPipeStream
 
 	try 
 	{
+		if(-not $ServerPipe.CanRead)
+		{
+			throw "Server pipe does not have read capability"
+		}
+
 		Write-Log -LogType 'Verbose' -LogMessage "Waiting for incoming connection ... "
 						
 		# Check connection
@@ -470,21 +480,10 @@ Function ReadFrom-ClientPipeStream
 				try 
 				{
 					$Buffer = Initialize-Buffer -Buffer $Buffer
-					$Task = $ServerPipe.ReadAsync($Buffer, $offset, $Buffer.Count, $ReadAsyncCancellationToken) 
+					$Task = $ServerPipe.ReadAsync($Buffer, $offset, 1, $ReadAsyncCancellationToken) 
 					if($Task.IsCompleted)
 					{
 						$N = $Task.Result
-						if($N -gt 0 -and $N -eq $Buffer.Count) # There may be more data to read
-						{
-							$offset = $N
-							$loop = $true
-							Write-Log -LogType 'Verbose' -LogMessage "OK [More data?] " -NoNewLine
-						}
-						else 
-						{
-							$loop = $false 
-							$offset = 0
-						}
 					}
 					elseif($Task.IsCanceled)
 					{
@@ -606,9 +605,9 @@ Function Interprete-CommandFromFrontend
 						}
 
 						# Flip read async cancellation token
-						[System.Threading.Tasks.Task]::Delay(2000)
+						[System.Threading.Tasks.Task]::Delay(1000)
 						$ReadAsyncCancellationToken = [System.Threading.CancellationToken]::new($true)
-						[System.Threading.Tasks.Task]::Delay(2000)
+						[System.Threading.Tasks.Task]::Delay(1000)
 						$ReadAsyncCancellationToken = [System.Threading.CancellationToken]::new($false)
 					}
 					while($loop)

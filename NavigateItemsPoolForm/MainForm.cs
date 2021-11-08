@@ -442,26 +442,14 @@ namespace NavigateItemsPoolForm
                                     {
                                         var T = Pipe.ReadAsync
                                         (
-                                            buffer, offset, buffer.Count()
+                                            buffer, offset, 1
                                         );
                                         if (T.IsCompleted)
                                         {
                                             int N = T.Result;
-                                            // Possibly more data to read
-                                            if ((N > 0) && (N == buffer.Count())) 
+                                            if (N > 0) 
                                             {
-                                                loopRead = true;
-                                                offset = N;
                                                 data += Encoding.GetString(buffer);
-                                            }
-                                            else
-                                            {
-                                                loopRead = false;
-                                                offset = 0;
-                                                if (N > 0)
-                                                {
-                                                    data += Encoding.GetString(buffer);
-                                                }
                                             }
                                         }
                                     }
@@ -630,8 +618,7 @@ namespace NavigateItemsPoolForm
                                      itemSource;
 
                     var buffer = Encoding.GetBytes(message);
-                    int size = buffer.Count();
-                    var task = Pipe.WriteAsync(buffer, 0, size); 
+                    var task = Pipe.WriteAsync(buffer, 0, 1); 
                     PipeWriteTasks.Add(task);
                 }
                 else
@@ -657,5 +644,6 @@ namespace NavigateItemsPoolForm
         } // NavigateItemsPool
 
         #endregion
+    
     }
 }
