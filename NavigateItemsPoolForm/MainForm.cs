@@ -14,9 +14,10 @@ namespace NavigateItemsPoolForm
 {
     public partial class MainForm : Form
     {
+
         #region Delegates or/and Events
 
-        delegate void AsyncOperationReturn(object sender, string operation);
+        delegate void AsyncOperationReturn(object sender, string operation, MainForm form);
 
         #endregion
 
@@ -30,7 +31,6 @@ namespace NavigateItemsPoolForm
 
         CancellationToken PipeReadCancellationToken = new CancellationToken(false);
         CancellationToken FeedbackCancellationToken = new CancellationToken(false);
-        Task FeedbackFromServerTask = null;
         System.Drawing.Size ReferenceTextCharacterSize = default;
         System.IO.Pipes.NamedPipeClientStream Pipe = null;
         Color VerboseTextBoxForeColor;
@@ -56,7 +56,8 @@ namespace NavigateItemsPoolForm
         {
             try
             {
-                this.VerboseTextBox.ForeColor = VerboseTextBoxForeColor;
+                var VTextBox = sender as RichTextBox;
+                VTextBox.ForeColor = VerboseTextBoxForeColor;
             }
             catch (Exception ex)
             {
@@ -85,7 +86,7 @@ namespace NavigateItemsPoolForm
         {
             try
             {
-                HideFeedbackPanel();
+                HideFeedbackPanel(this);
                 FeedbackCancellationToken = new CancellationToken(true);
             }
             catch(Exception ex)
@@ -108,7 +109,7 @@ namespace NavigateItemsPoolForm
         {
             try
             {
-                HideFeedbackPanel();
+                HideFeedbackPanel(this);
                 FeedbackCancellationToken = new CancellationToken(true);
             }
             catch (Exception ex)
@@ -163,7 +164,8 @@ namespace NavigateItemsPoolForm
         /// </summary>
         /// <param name="sender"> The async pipe task </param>
         /// <param name="operation"> Specifies the command string </param>
-        private void OnReturningFromAsyncPipeOperation(object sender, string operation)
+        /// <param name="form"> The form object </param>
+        private void OnReturningFromAsyncPipeOperation(object sender, string operation, MainForm form)
         {
             try
             {
@@ -174,7 +176,7 @@ namespace NavigateItemsPoolForm
                 // Some milliseconds to complete and we are good
                 Task.Delay(1000);
                 // Give feedback for async task operation
-                GiveFeedbackToUiInput(task, operation);
+                GiveFeedbackToUiInput(task, operation, true, form);
 
                 WriteVerbose("OK");
 
@@ -250,7 +252,7 @@ namespace NavigateItemsPoolForm
                         InterpreteFeedbackFromPipeServerStream(data);
 
                         // Fire feedback event
-                        GiveFeedbackToUiInput(task, message, false);
+                        GiveFeedbackToUiInput(task, message, false, form);
 
                         data = System.String.Empty;
                     }
@@ -279,13 +281,13 @@ namespace NavigateItemsPoolForm
 
         #region Helper Methods
 
-        private void HideFeedbackPanel()
+        private void HideFeedbackPanel(MainForm form)
         { 
             try
             {
-                this.FeedbackPanel.SendToBack();
-                this.FeedbackPanel.Visible = false;
-                this.FeedbackRichTextBox.Visible = false;
+                form.FeedbackPanel.SendToBack();
+                form.FeedbackPanel.Visible = false;
+                form.FeedbackRichTextBox.Visible = false;
             }
             catch(Exception ex)
             {
@@ -294,13 +296,13 @@ namespace NavigateItemsPoolForm
 
         } // HideFeedbackPanel
 
-        private void ShowFeedbackPanel()
+        private void ShowFeedbackPanel(MainForm form)
         {
             try
             {
-                this.FeedbackPanel.BringToFront();
-                this.FeedbackPanel.Visible = true;
-                this.FeedbackRichTextBox.Visible = true;
+                form.FeedbackPanel.BringToFront();
+                form.FeedbackPanel.Visible = true;
+                form.FeedbackRichTextBox.Visible = true;
             }
             catch (Exception ex)
             {
@@ -408,15 +410,15 @@ namespace NavigateItemsPoolForm
 
         } // WriteVerbose
 
-        private void WriteFeedback(string message)
+        private void WriteFeedback(string message, MainForm form)
         {
             try
             {
-                string msg = message;
+                string msg = message; 
 
                 // Show feedback
-                this.FeedbackRichTextBox.Text = msg;
-                ShowFeedbackPanel();
+                form.FeedbackRichTextBox.Text = msg;
+                ShowFeedbackPanel(form);
                 // Flip feedback cancellation token
                 FeedbackCancellationToken = new CancellationToken(true);
                 Task.Delay(500);
@@ -464,7 +466,7 @@ namespace NavigateItemsPoolForm
 
         } // InterpreteFeedbackFromPipeServerStream
 
-        private void GiveFeedbackToUiInput(Task task, string operation, bool noStatus=true)
+        private void GiveFeedbackToUiInput(Task task, string operation, bool noStatus, MainForm form)
         {
             try
             { 
@@ -486,6 +488,17 @@ namespace NavigateItemsPoolForm
                         {
                             status = "Status: Completed";
                         }
+                        else
+                        {
+                            if (null != task.Exception)
+                            {
+                                status = $"Status: {task.Status}; {task.Exception.Message}";
+                            }
+                            else
+                            {
+                                status = $"Status: {task.Status}";
+                            }
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -499,12 +512,12 @@ namespace NavigateItemsPoolForm
                     {
                         string richText = $"{status}\r\n{operation}";
 
-                        WriteFeedback(richText);
+                        WriteFeedback(richText, form);
                     }
                 }
                 else
                 {
-                    WriteFeedback(operation);
+                    WriteFeedback(operation, form);
                 }
 
             }
@@ -568,7 +581,7 @@ namespace NavigateItemsPoolForm
                     var task = Pipe.WriteAsync(buffer, 0, 1);
 
                     string operation = $"'{command}' on '{itemCategory}' from '{itemSource}'";
-                    PipeWriteAsyncReturn(task, operation);
+                    PipeWriteAsyncReturn(task, operation, this);
                 }
                 else
                 {
@@ -576,7 +589,7 @@ namespace NavigateItemsPoolForm
                     WriteVerbose(verbose, false, "Red");
                     string message = $"Status: Pipe not connected\r\n" +
                                      $"Command '{command}' on '{itemCategory}' from '{itemSource}'";
-                    WriteFeedback(message);
+                    WriteFeedback(message, this);
                 }
 
                 verbose = "Done Processing";

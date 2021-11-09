@@ -223,6 +223,36 @@ Function Initialize-Buffer
 
 } # Initialize-Buffer
 
+Function Undo-EventSubscription 
+{
+	[CmdletBinding()]
+	param 
+	(
+		[parameter(Mandatory=$true, ValueFromPipeline=$true)]
+		[ValidateNotNullOrEmpty()]
+		[System.String]$SourceIdentifier
+	)
+
+	$Function = "$($MyInvocation.MyCommand.Name)"
+
+	try 
+	{
+		$subs = Get-EventSubscriber
+		foreach($sub in $subs)
+		{
+			if($sub.SourceIdentifier -eq $SourceIdentifier)
+			{
+				Unregister-Event -SourceIdentifier $sub.SourceIdentifier | Out-Null
+			}
+		}
+	} 
+	catch 
+	{
+		Write-Log -Function $Function -Exception $_
+	}
+
+} # Undo-EventSubscription
+
 # <summary> 
 #	Handles the 'Command.Interpreted' event and raises the 'Command.Executed' event to 
 #	mark completion.
@@ -240,14 +270,7 @@ Function Execute-CommandFromFrontend
 	$SourceIdentifier = "Command.Interpreted"
 
 	# Remove events
-	$subs = Get-EventSubscriber
-	foreach($sub in $subs)
-	{
-		if($sub.SourceIdentifier -eq $SourceIdentifier)
-		{
-			Unregister-Event -SourceIdentifier $sub.SourceIdentifier | Out-Null
-		}
-	}
+	Undo-EventSubscription -SourceIdentifier "$SourceIdentifier" | Out-Null
 
 	# Subscribe to event 
 	$x = Register-EngineEvent -SourceIdentifier $SourceIdentifier -Action {
@@ -302,14 +325,7 @@ Function Confirm-ExecuteCommandToFrontend
 	$SourceIdentifier = "Command.Executed"
 
 	# Remove events
-	$subs = Get-EventSubscriber
-	foreach($sub in $subs)
-	{
-		if($sub.SourceIdentifier -eq $SourceIdentifier)
-		{
-			Unregister-Event -SourceIdentifier $sub.SourceIdentifier | Out-Null
-		}
-	}
+	Undo-EventSubscription -SourceIdentifier "$SourceIdentifier" | Out-Null
 
 	# Subscribe to event
 	$x = Register-EngineEvent -SourceIdentifier $SourceIdentifier -Action {
@@ -326,22 +342,46 @@ Function Confirm-ExecuteCommandToFrontend
 				throw "Pipe object is null or invalid"
 			}
 
-			# Put the data to use
-			$Feedback = [System.String]::Empty 
-			if($Exception -eq $null) # OK
+			Write-Log -LogType 'Verbose' -LogMessage "Waiting for incoming connection ... "
+						
+			# Check connection
+			try 
 			{
-				$Feedback = "OK#$Data"
+				if(-not $Pipe.IsConnected)
+				{
+					$Pipe.WaitForConnection() | Out-Null
+				}
 			}
-			else # ERROR
+			catch 
 			{
-				$Feedback = "ERROR#$Data"
+				Write-Log -Function "$Function#WaitForConnection" -Exception $_
 			}
-			WriteTo-ClientPipeStream -ServerPipe $Pipe -Feedback $Feedback | Out-Null
-			# Flip write async cancellation token
-			[System.Threading.Tasks.Task]::Delay(1000)
-			$WriteAsyncCancellationToken = [System.Threading.CancellationToken]::new($true)
-			[System.Threading.Tasks.Task]::Delay(1000)
-			$WriteAsyncCancellationToken = [System.Threading.CancellationToken]::new($false)
+
+			$JName = "PipeAsyncWrite"
+			$x = Start-Job -Name "$JName" -ArgumentList $Pipe -ScriptBlock {
+				$ServerPipe = Args[0]
+				if($ServerPipe -eq $null) 
+				{
+					return
+				}
+
+				# Put the data to use
+				$Feedback = [System.String]::Empty 
+				if($Exception -eq $null) # OK
+				{
+					$Feedback = "OK#$Data"
+				}
+				else # ERROR
+				{
+					$Feedback = "ERROR#$Data"
+				}
+				WriteTo-ClientPipeStream -ServerPipe $ServerPipe -Feedback $Feedback | Out-Null
+				# Flip write async cancellation token
+				[System.Threading.Tasks.Task]::Delay(2000)
+				$WriteAsyncCancellationToken = [System.Threading.CancellationToken]::new($true)
+				[System.Threading.Tasks.Task]::Delay(1000)
+				$WriteAsyncCancellationToken = [System.Threading.CancellationToken]::new($false)
+			}
 		}
 		catch
 		{
@@ -376,21 +416,6 @@ Function WriteTo-ClientPipeStream
 		if(-not $ServerPipe.CanWrite)
 		{
 			throw "Server pipe does not have write capability"
-		}
-
-		Write-Log -LogType 'Verbose' -LogMessage "Waiting for incoming connection ... "
-						
-		# Check connection
-		try 
-		{
-			if(-not $ServerPipe.IsConnected)
-			{
-				$ServerPipe.WaitForConnection() | Out-Null
-			}
-		}
-		catch 
-		{
-			Write-Log -Function "$Function#WaitForConnection" -Exception $_
 		}
 
 		if($ServerPipe.IsConnected)
@@ -442,24 +467,14 @@ Function ReadFrom-ClientPipeStream
 
 	try 
 	{
+		if($ServerPipe -eq $null) 
+		{
+			throw "Pipe object is null"
+		}
+
 		if(-not $ServerPipe.CanRead)
 		{
 			throw "Server pipe does not have read capability"
-		}
-
-		Write-Log -LogType 'Verbose' -LogMessage "Waiting for incoming connection ... "
-						
-		# Check connection
-		try 
-		{
-			if(-not $ServerPipe.IsConnected)
-			{
-				$ServerPipe.WaitForConnection() | Out-Null
-			}
-		}
-		catch 
-		{
-			Write-Log -Function "$Function#WaitForConnection" -Exception $_
 		}
 
 		if($ServerPipe.IsConnected) 
@@ -543,6 +558,34 @@ Function ReadFrom-ClientPipeStream
 
 } # ReadFrom-ClientPipeStream
 
+Function Clean-Job 
+{
+	[CmdletBinding()]
+	param 
+	(
+		[parameter(Mandatory=$true, ValueFromPipeline=$true)]
+		[ValidateNotNullOrEmpty()]
+		[System.String]$JobName
+	)
+
+	$Function = "$($MyInvocation.MyCommand.Name)"
+
+	try 
+	{
+		$job = Get-Job | Where {$_.Name -Match "\A$JobName\Z"}
+		if($job)
+		{
+			Stop-Job -Job $job | Out-Null 
+			Remove-Job -Job $job | Out-Null
+		}
+	} 
+	catch 
+	{
+		Write-Log -Function $Function -Exception $_
+	}
+
+} # Clean-Job 
+
 # <summary> Interpretes and responds to a command from a frontend UI </summary>
 # <details>
 #	Can run as a background job, unless there are unwanted side effects. Provide 
@@ -570,23 +613,20 @@ Function Interprete-CommandFromFrontend
 		$JobName = "Interprete-Command"
 	
 		# Clean up any such-like jobs
-		$job = Get-Job | Where {$_.Name -Match "\A$JobName\Z"}
-		if($job)
-		{
-			Stop-Job -Job $job | Out-Null 
-			Remove-Job -Job $job | Out-Null
-		}
+		Clean-Job -JobName "$JobName" | Out-Null
 	
 		$JobScriptBlock = {
 			try 
 			{
 				Write-Log -LogType 'Verbose' -LogMessage "Starting Interpreter script block execution ..."
-			
+			    
+				$Func = $Args[0]
+				$PipeName = $Args[1]
 				$PipeDirection = [System.IO.Pipes.PipeDirection]::InOut
 				$MaxInstances = 100
 				$TransmissionMode = [System.IO.Pipes.PipeTransmissionMode]::Message 
 				$PipeOption = [System.IO.Pipes.PipeOptions]::Asynchronous
-				$ServerPipe = [System.IO.Pipes.NamedPipeServerStream]::new($ServerPipeName, $PipeDirection, $MaxInstances, $TransmissionMode, $PipeOption)
+				$ServerPipe = [System.IO.Pipes.NamedPipeServerStream]::new($PipeName, $PipeDirection, $MaxInstances, $TransmissionMode, $PipeOption)
 				
 				if($ServerPipe)
 				{
@@ -597,7 +637,27 @@ Function Interprete-CommandFromFrontend
 					{
 						try 
 						{
-							$EvData = $ServerPipe | ReadFrom-ClientPipeStream
+							# Check connection
+							try 
+							{
+								if(-not $ServerPipe.IsConnected)
+								{
+									$ServerPipe.WaitForConnection() | Out-Null
+								}
+							}
+							catch 
+							{
+								Write-Log -Function "$Function#WaitForConnection" -Exception $_
+							}
+							
+							# Read background job to avoid blocking in case of a Disconnect 
+							# at the other end
+							$JName = "PipeReadAsync"
+							Clean-Job -JobName "$JName" | Out-Null
+							$x = Start-Job -Name "$JName" -ArgumentList $ServerPipe -ScriptBlock {
+								$Pipe = $Args[0]
+								$EvData = $Pipe | ReadFrom-ClientPipeStream
+							}
 						} 
 						catch 
 						{
@@ -605,7 +665,7 @@ Function Interprete-CommandFromFrontend
 						}
 
 						# Flip read async cancellation token
-						[System.Threading.Tasks.Task]::Delay(1000)
+						[System.Threading.Tasks.Task]::Delay(2000)
 						$ReadAsyncCancellationToken = [System.Threading.CancellationToken]::new($true)
 						[System.Threading.Tasks.Task]::Delay(1000)
 						$ReadAsyncCancellationToken = [System.Threading.CancellationToken]::new($false)
@@ -629,11 +689,11 @@ Function Interprete-CommandFromFrontend
 
 		if($BackgroundJob) 
 		{
-			$job = Start-Job -Name $JobName -ScriptBlock $JobScriptBlock
+			$job = Start-Job -Name "$JobName" -ArgumentList "$Function", "$ServerPipeName" -ScriptBlock $JobScriptBlock
 		}
 		else 
 		{
-			. $JobScriptBlock | Out-Null
+			. $JobScriptBlock "$Function" "$ServerPipeName" | Out-Null
 		}
 	}
 	catch
