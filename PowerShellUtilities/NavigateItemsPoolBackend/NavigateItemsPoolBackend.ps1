@@ -15,8 +15,7 @@ $path = Join-Path "$here" "$sut"
 #>
 
 $ProgramDataPath = Join-Path "$Home" "AppData\Local\NavigateItemsPool"
-$ReadAsyncCancellationToken = [System.Threading.CancellationToken]::new($false)
-$WriteAsyncCancellationToken = [System.Threading.CancellationToken]::new($false)
+$PipeWriteJobs = [System.Collections.Generic.List[System.Object]]::new()
 
 Function Write-Log 
 {
@@ -32,7 +31,7 @@ Function Write-Log
 		[switch]$NoNewLine # Continue from previous line, if Verbose
 	)
 
-	$FunctionName = "$($MyInvocation.MyCommand.Name)"
+	$FunctionName = $MyInvocation.MyCommand.Name
 
 	try 
 	{
@@ -42,7 +41,7 @@ Function Write-Log
 		$ScriptName = [System.String]::Empty
 		if(-not [System.String]::IsNullOrEmpty($ScriptFullName))
 		{
-			$ScriptName = Split-Path -Leaf "$ScriptFullName"
+			$ScriptName = Split-Path -Leaf $ScriptFullName
 		}
 
 		$message = [System.String]::Empty
@@ -61,7 +60,7 @@ Function Write-Log
 		{
 			if($NoNewLine.IsPresent) 
 			{
-				$message = "$LogMessage"
+				$message = $LogMessage
 			}
 			else 
 			{
@@ -73,21 +72,21 @@ Function Write-Log
 			$message = "$(Get-Date): $LogMessage # $($ScriptName)"
 		}
 		
-		$file = Join-Path "$ProgramDataPath" "data-log.log"
-		$directory = Split-Path -Parent "$file"
-		$leaf = Split-Path -Leaf "$file"
+		$file = Join-Path $ProgramDataPath "data-log.log"
+		$directory = Split-Path -Parent $file
+		$leaf = Split-Path -Leaf $file
 		
-		if(-not (Test-Path "$directory" -PathType Container))
+		if(-not (Test-Path $directory -PathType Container))
 		{
-			mkdir "$directory" | Out-Null
+			mkdir $directory | Out-Null
 		}
 
 		$lines = [System.Collections.Generic.List[string]]::new()
 		$all = $null
 		# Truncate log file
-		if(Test-Path "$file" -PathType Leaf) 
+		if(Test-Path $file -PathType Leaf) 
 		{
-			if((Get-ItemProperty "$file").Length -gt $MaxLogfileSize) 
+			if((Get-ItemProperty $file).Length -gt $MaxLogfileSize) 
 			{
 				# Save last N lines
 				$nToSave = 50
@@ -98,7 +97,7 @@ Function Write-Log
 					$lines.Add($all[$i])
 				}
 				# Delete log file
-				Remove-Item "$file" | Out-Null
+				Remove-Item $file | Out-Null
 			}
 		}
 
@@ -143,13 +142,13 @@ Function Interprete-PipeData
 		[System.String]$PipeData
 	)
 
-	$Function = "$($MyInvocation.MyCommand.Name)"
+	$Function = $MyInvocation.MyCommand.Name
 	$Data = $null
 
 	try 
 	{
 		$PipeMessageSeparator = "#"
-		$messages = $PipeData -Split "$PipeMessageSeparator"
+		$messages = $PipeData -Split $PipeMessageSeparator
 		if($messages)
 		{
 			$date = Get-Date
@@ -199,7 +198,7 @@ Function Initialize-Buffer
 		[byte[]]$Buffer
 	)
 
-	$Function = "$($MyInvocation.MyCommand.Name)"
+	$Function = $MyInvocation.MyCommand.Name
 
 	try 
 	{
@@ -233,7 +232,7 @@ Function Undo-EventSubscription
 		[System.String]$SourceIdentifier
 	)
 
-	$Function = "$($MyInvocation.MyCommand.Name)"
+	$Function = $MyInvocation.MyCommand.Name
 
 	try 
 	{
@@ -270,7 +269,7 @@ Function Execute-CommandFromFrontend
 	$SourceIdentifier = "Command.Interpreted"
 
 	# Remove events
-	Undo-EventSubscription -SourceIdentifier "$SourceIdentifier" | Out-Null
+	Undo-EventSubscription -SourceIdentifier $SourceIdentifier | Out-Null
 
 	# Subscribe to event 
 	$x = Register-EngineEvent -SourceIdentifier $SourceIdentifier -Action {
@@ -288,7 +287,7 @@ Function Execute-CommandFromFrontend
 
 			# Put the data to use
 			$message = "Command: $Command, Category: $Category, Source: $Source, Date: $Date"
-			Write-Log -LogType 'Verbose' -LogMessage "$message"
+			Write-Log -LogType 'Verbose' -LogMessage $message
 
 			$EventArgs = @{
 				Feedback = "$Command#$Category#$Source#$Date";
@@ -325,7 +324,7 @@ Function Confirm-ExecuteCommandToFrontend
 	$SourceIdentifier = "Command.Executed"
 
 	# Remove events
-	Undo-EventSubscription -SourceIdentifier "$SourceIdentifier" | Out-Null
+	Undo-EventSubscription -SourceIdentifier $SourceIdentifier | Out-Null
 
 	# Subscribe to event
 	$x = Register-EngineEvent -SourceIdentifier $SourceIdentifier -Action {
@@ -358,7 +357,7 @@ Function Confirm-ExecuteCommandToFrontend
 			}
 
 			$JName = "PipeAsyncWrite"
-			$x = Start-Job -Name "$JName" -ArgumentList $Pipe -ScriptBlock {
+			$x = Start-Job -Name $JName -ArgumentList $Pipe -ScriptBlock {
 				$ServerPipe = Args[0]
 				if($ServerPipe -eq $null) 
 				{
@@ -376,11 +375,11 @@ Function Confirm-ExecuteCommandToFrontend
 					$Feedback = "ERROR#$Data"
 				}
 				WriteTo-ClientPipeStream -ServerPipe $ServerPipe -Feedback $Feedback | Out-Null
-				# Flip write async cancellation token
-				[System.Threading.Tasks.Task]::Delay(2000)
-				$WriteAsyncCancellationToken = [System.Threading.CancellationToken]::new($true)
-				[System.Threading.Tasks.Task]::Delay(1000)
-				$WriteAsyncCancellationToken = [System.Threading.CancellationToken]::new($false)
+			}
+
+			if($x) 
+			{
+				$PipeWriteJobs.Add($x)
 			}
 		}
 		catch
@@ -409,7 +408,7 @@ Function WriteTo-ClientPipeStream
 		[System.String]$Feedback="OK"
 	)
 
-	$Function = "$($MyInvocation.MyCommand.Name)"
+	$Function = $MyInvocation.MyCommand.Name
 
 	try 
 	{
@@ -426,20 +425,7 @@ Function WriteTo-ClientPipeStream
 			# Write data 
 			$Encoding = [System.Text.Encoding]::UTF8 
 			$Buffer = $Encoding.GetBytes($Feedback) 
-			$Task = $PipeServer.WriteAsync($Buffer, 0, 1, $WriteAsyncCancellationToken)
-
-			if($Task.IsCompleted) 
-			{
-				Write-Log -LogType 'Verbose' -LogMessage "Done" -NoNewLine 
-			}
-			elseif($Task.IsCanceled)
-			{
-				throw "Pipe server stream write task is canceled"
-			}
-			elseif($Task.IsFaulted)
-			{
-				throw "Pipe server stream write task is faulted"
-			}
+			$N = $PipeServer.Write($Buffer, 0, 1)
 		}
 	} 
 	catch 
@@ -459,14 +445,54 @@ Function ReadFrom-ClientPipeStream
 	(
 		[parameter(Mandatory=$true, ValueFromPipeline=$true)]
 		[ValidateNotNull()]
-		[System.IO.Pipes.NamedPipeServerStream]$ServerPipe
+		[System.IO.Pipes.NamedPipeServerStream]$ServerPipe,
+		[parameter(Mandatory=$true)]
+        [System.Management.Automation.PSRemotingJob]$ReadJob
 	) 
 
-	$Function = "$($MyInvocation.MyCommand.Name)"
-	$EventData = $null
+	$Function = $MyInvocation.MyCommand.Name
+	$Job = $null
 
 	try 
 	{
+		if($ReadJob)
+		{
+			$verbose = [System.String]::Empty 
+			foreach($v in $ReadJob.Verbose) 
+			{
+				$verbose += $v
+			}
+			if(-not [System.String]::IsNullOrEmpty($verbose)) 
+			{
+				Write-Log -LogType 'Verbose' -LogMessage $verbose
+			}
+
+			$StateCompleted = "Completed"
+			if($ReadJob.State.ToString() -Match "\A$StateCompleted\Z")
+			{
+				$data = $ReadJob.Output[-1]
+				if(-not [System.String]::IsNullOrEmpty($data))
+				{
+					$EventArgs = Interprete-PipeData -PipeData $data
+					# Add pipe object
+					$EventArgs["Pipe"] = $ServerPipe
+					# Build splatted parameters for the event
+					$EventParams = @{
+						Sender = $ServerPipe;
+						SourceIdentifier = $InterpretedEventSrcId;
+						EventArguments = $EventArgs;
+					}
+					# Fire the event
+					$x = New-Event @EventParams
+					$EventData = $EventArgs
+				}
+			}
+			else 
+			{
+				Clean-Job -JobName $ReadJob.Name | Out-Null
+			}
+		}
+	
 		if($ServerPipe -eq $null) 
 		{
 			throw "Pipe object is null"
@@ -480,67 +506,25 @@ Function ReadFrom-ClientPipeStream
 		if($ServerPipe.IsConnected) 
 		{
 			Write-Log -LogType 'Verbose' -LogMessage "OK" -NoNewLine
-			Write-Log -LogType 'Verbose' -LogMessage "Attempting read ... "
 					    
 			# Read data
-			$Encoding = [System.Text.Encoding]::UTF8
-			$BufferSize = 1024
-			$Buffer = [byte[]]::new($BufferSize)
-			$data = [System.String]::Empty
-			$offset = 0
-			$loop = $false
-			do 
-			{
-				$N = 0
-				try 
-				{
-					$Buffer = Initialize-Buffer -Buffer $Buffer
-					$Task = $ServerPipe.ReadAsync($Buffer, $offset, 1, $ReadAsyncCancellationToken) 
-					if($Task.IsCompleted)
-					{
-						$N = $Task.Result
-					}
-					elseif($Task.IsCanceled)
-					{
-						throw "Pipe server stream read task is cancelled"
-					}
-					elseif($Task.IsFaulted)
-					{
-						throw "Pipe server stream read task is faulted"
-					}
-				}
-				catch 
-				{
-					Write-Log -Function "$Function#Read" -Exception $_
-				}
+			$JName = "PipeReadJob"
+			$Job = Start-Job -Name $JName -ArgumentList $ServerPipe -ScriptBlock {
+				$Pipe = $Args[0]
+				$BufferSize = 1024
+			    $Buffer = [byte[]]::new($BufferSize)
+				$Encoding = [System.Text.Encoding]::UTF8
+			    $data = [System.String]::Empty
 
-				if($N -gt 0)
-				{
-					Write-Log -LogType 'Verbose' -LogMessage "OK" -NoNewLine
-					
-					$data += $Encoding.GetString($Buffer) 
-				}
-				else 
-				{
-					Write-Log -LogType 'Verbose' -LogMessage "EMPTY" -NoNewLine
-				}
-			}
-			while($loop)
-			
-			if(-not [System.String]::IsNullOrEmpty($data))
-			{
-				$EventArgs = Interprete-PipeData -PipeData "$data"
-				# Add pipe object
-				$EventArgs["Pipe"] = $ServerPipe
-				# Build splatted parameters for the event
-				$EventParams = @{
-					Sender = $ServerPipe;
-					SourceIdentifier = $InterpretedEventSrcId;
-					EventArguments = $EventArgs;
-				}
-				# Fire the event
-				$x = New-Event @EventParams
-				$EventData = $EventArgs
+				Write-Verbose "Attempting read ... "
+
+				$N = $ServerPipe.Read($Buffer, 0, 1)
+
+				$data = $Encoding.GetString($Buffer) 
+
+				Write-Verbose "OK"
+
+				return $data
 			}
 		}
 		else 
@@ -554,7 +538,7 @@ Function ReadFrom-ClientPipeStream
 		Write-Log -Function $Function -Exception $_
 	}
 
-	return $EventData
+	return $Job
 
 } # ReadFrom-ClientPipeStream
 
@@ -568,7 +552,7 @@ Function Clean-Job
 		[System.String]$JobName
 	)
 
-	$Function = "$($MyInvocation.MyCommand.Name)"
+	$Function = $MyInvocation.MyCommand.Name
 
 	try 
 	{
@@ -585,6 +569,62 @@ Function Clean-Job
 	}
 
 } # Clean-Job 
+
+Function Maintain-PipeWriteJobs 
+{
+	[CmdletBinding()]
+	param 
+	(
+		[parameter(Mandatory=$true, ValueFromPipeline=$true)]
+		[System.Collections.Generic.List[System.Object]]$WriteJobs
+	)
+
+	$Function = $MyInvocation.MyCommand.Name
+
+	try 
+	{
+		
+		if($PipeWriteJobs.Count() -gt 0) 
+		{
+			$CleanedJobs = $null
+			foreach($job in $PipeWriteJobs) 
+			{
+				try 
+				{
+					$JobCompletedState = "Completed"
+					$PipeWriteTimeout = 3000
+					$start = $job.PSBeginTime 
+					$executionTime = (Get-Date).subtract($start).TotalMilliseconds 
+					if(
+						($executionTime -gt $PipeWriteTimeout) -OR 
+						($job.State.ToString() -Match "\A$JobCompletedState\Z") 
+					){
+						Clean-Job -JobName $job.Name | Out-Null
+						$CleanedJobs = [System.Collections.Generic.List[System.Object]]::new()
+						$CleanedJobs.Add($job)
+					}
+				}
+				catch 
+				{
+					Write-Log -Function "$Function#ExecutionTime" -Exception $_
+				}
+			}
+
+			if($CleanedJobs) 
+			{
+				foreach($job in $CleanedJobs) 
+				{
+					$PipeWriteJobs.Remove($job) | Out-Null
+				}
+			}
+		}
+	}
+	catch 
+	{
+		Write-Log -Function $Function -Exception $_
+	}
+
+} # Maintain-PipeWriteJobs
 
 # <summary> Interpretes and responds to a command from a frontend UI </summary>
 # <details>
@@ -603,7 +643,7 @@ Function Interprete-CommandFromFrontend
 		[bool]$BackgroundJob=$false
 	)
 
-	$Function = "$($MyInvocation.MyCommand.Name)"
+	$Function = $MyInvocation.MyCommand.Name
 
 	try 
 	{
@@ -613,7 +653,7 @@ Function Interprete-CommandFromFrontend
 		$JobName = "Interprete-Command"
 	
 		# Clean up any such-like jobs
-		Clean-Job -JobName "$JobName" | Out-Null
+		Clean-Job -JobName $JobName | Out-Null
 	
 		$JobScriptBlock = {
 			try 
@@ -632,6 +672,7 @@ Function Interprete-CommandFromFrontend
 				{
 					Write-Log -LogType 'Verbose' -LogMessage "Server Pipe created."
 
+					$ReadJob = $null 
 					$loop = $true
 					do 
 					{
@@ -650,25 +691,18 @@ Function Interprete-CommandFromFrontend
 								Write-Log -Function "$Function#WaitForConnection" -Exception $_
 							}
 							
-							# Read background job to avoid blocking in case of a Disconnect 
-							# at the other end
-							$JName = "PipeReadAsync"
-							Clean-Job -JobName "$JName" | Out-Null
-							$x = Start-Job -Name "$JName" -ArgumentList $ServerPipe -ScriptBlock {
-								$Pipe = $Args[0]
-								$EvData = $Pipe | ReadFrom-ClientPipeStream
-							}
+							$ReadJob = $ServerPipe | ReadFrom-ClientPipeStream -ReadJob $ReadJob
 						} 
 						catch 
 						{
 							Write-Log -Function "ReadFrom-ClientPipeStream" -Exception $_
 						}
 
-						# Flip read async cancellation token
-						[System.Threading.Tasks.Task]::Delay(2000)
-						$ReadAsyncCancellationToken = [System.Threading.CancellationToken]::new($true)
-						[System.Threading.Tasks.Task]::Delay(1000)
-						$ReadAsyncCancellationToken = [System.Threading.CancellationToken]::new($false)
+						# Give it some time since read is async
+						[System.Threading.Tasks.Task]::Delay(3000)
+						
+						# Clean write jobs
+						$PipeWriteJobs | Maintain-PipeWriteJobs
 					}
 					while($loop)
 
@@ -689,11 +723,11 @@ Function Interprete-CommandFromFrontend
 
 		if($BackgroundJob) 
 		{
-			$job = Start-Job -Name "$JobName" -ArgumentList "$Function", "$ServerPipeName" -ScriptBlock $JobScriptBlock
+			$job = Start-Job -Name $JobName -ArgumentList $Function, $ServerPipeName -ScriptBlock $JobScriptBlock
 		}
 		else 
 		{
-			. $JobScriptBlock "$Function" "$ServerPipeName" | Out-Null
+			. $JobScriptBlock $Function $ServerPipeName | Out-Null
 		}
 	}
 	catch
