@@ -28,6 +28,7 @@ namespace NavigateItemsPoolForm
         string ServerPipeName => "."; // Remote computer, '.' for local
         string ClientPipeName => "ItemsPoolPipeServer";
         int FeedbackDelayInMilliseconds => 10000;
+        int ServerResponseTimeout => 10000; // In Milliseconds
 
         CancellationToken PipeReadCancellationToken = new CancellationToken(false);
         CancellationToken FeedbackCancellationToken = new CancellationToken(false);
@@ -178,7 +179,7 @@ namespace NavigateItemsPoolForm
                 // Give feedback for async task operation
                 GiveFeedbackToUiInput(task, operation, true, form);
 
-                WriteVerbose("OK");
+                WriteVerbose("OK", false, "White", form);
 
                 // Wait for server's feedback
                 int size = 1024;
@@ -190,7 +191,11 @@ namespace NavigateItemsPoolForm
                     return;
                 }
 
-                WriteVerbose("Waiting for response from server ... ", true);
+                WriteVerbose
+                (
+                    "Waiting for response from server ... ", true, 
+                    "White", form
+                );
                 
                 // Check connection
                 if (!Pipe.IsConnected)
@@ -220,7 +225,7 @@ namespace NavigateItemsPoolForm
                     try
                     {
                         // Some milliseconds for the server to respond and we are good
-                        Task.Delay(5000);
+                        Task.Delay(ServerResponseTimeout);
                         var T = Pipe.ReadAsync
                         (
                             buffer, 0, 1, PipeReadCancellationToken
@@ -390,18 +395,22 @@ namespace NavigateItemsPoolForm
 
         } // AssessTextCharacterSize
 
-        private void WriteVerbose(string message, bool noNewLine=false, string ccolor="White")
-        {
+        private void WriteVerbose
+        (
+            string message, bool noNewLine=false, 
+            string ccolor="White", MainForm f=null
+        ){
             try
             {
+                MainForm form = f == null ? this : f;
                 string msg = message;
                 if(!noNewLine)
                 {
                     msg += "\r\n";
                 }
-                VerboseTextBoxForeColor = this.VerboseTextBox.ForeColor;
-                this.VerboseTextBox.ForeColor = Color.FromName(ccolor);
-                this.VerboseTextBox.Text += msg;
+                VerboseTextBoxForeColor = form.VerboseTextBox.ForeColor;
+                form.VerboseTextBox.ForeColor = Color.FromName(ccolor);
+                form.VerboseTextBox.Text += msg;
             }
             catch(Exception ex)
             {
