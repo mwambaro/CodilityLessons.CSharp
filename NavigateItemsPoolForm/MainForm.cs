@@ -48,6 +48,7 @@ namespace NavigateItemsPoolForm
             this.NavigationModeCheckedListBox.SetItemChecked(0, true);
             ReferenceTextCharacterSize = AssessTextCharacterSize();
             PipeWriteAsyncReturn += new AsyncOperationReturn(this.OnReturningFromAsyncPipeOperation);
+            ReadConfigurationData(this);
 
         } // MainForm
 
@@ -439,6 +440,94 @@ namespace NavigateItemsPoolForm
             }
 
         } // WriteFeedback
+
+        private Task ReadConfigurationData(MainForm form)
+        {
+            Task task = Task.Factory.StartNew(new Action(() =>
+            { 
+                try
+                {
+                    string ConfigData = System.String.Empty;
+                    MainForm f = form;
+                    int size = 4096;
+                    var buffer = new byte[size];
+
+                    do
+                    {
+                        if (null == Pipe)
+                        {
+                            Pipe = new System.IO.Pipes.NamedPipeClientStream
+                            (
+                                ServerPipeName, ClientPipeName,
+                                System.IO.Pipes.PipeDirection.InOut,
+                                System.IO.Pipes.PipeOptions.Asynchronous
+                            );
+                        }
+
+                        if (!Pipe.IsConnected)
+                        {
+                            string verbose = "Pipe is not connected. Connecting ... ";
+                            WriteVerbose(verbose, true, "White", f);
+                            try
+                            {
+                                Pipe.Connect(1000);
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine
+                                (
+                                    "ReadConfigurationData: " + ex.Message
+                                );
+                            }
+                        }
+
+                        if(Pipe.IsConnected)
+                        {
+                            WriteVerbose("OK", false, "White", f);
+                            var T = Pipe.ReadAsync(buffer, 0, 1);
+                            if(T.IsCompleted)
+                            {
+                                ConfigData = Encoding.GetString(buffer);
+                                if(ConfigData.StartsWith("Configuration", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    WriteVerbose
+                                    (
+                                        "We have configuration data", false, 
+                                        "White", f
+                                    );
+                                }
+                                else
+                                {
+                                    WriteVerbose
+                                    (
+                                        "The data is not configuration data", false, 
+                                        "White", f
+                                    );
+                                    // Clean buffer
+                                    for (int i = 0; i < buffer.Count(); i++)
+                                    {
+                                        buffer[i] = Encoding.GetBytes("0")[0];
+                                    }
+                                    ConfigData = System.String.Empty;
+                                }
+                            }
+                        } 
+                        else
+                        {
+                            WriteVerbose("FAILED", false, "White", f);
+                        }
+                    }
+                    while (System.String.IsNullOrEmpty(ConfigData));
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("ReadConfigurationData: " + ex.Message);
+                }
+            }));
+
+            return task;
+
+        } // ReadConfigurationData
 
         private string InterpreteFeedbackFromPipeServerStream(string data)
         {

@@ -475,7 +475,7 @@ Function ReadFrom-ClientPipeStream
 			}
 			else 
 			{
-				Write-Log -LogType 'Verbose' -LogMessage "Job: $($ReadJob.State); BDate: $($ReadJob.PSBeginTime)"
+				#Write-Log -LogType 'Verbose' -LogMessage "Job: $($ReadJob.State); BDate: $($ReadJob.PSBeginTime)"
 				Clean-Job -JobName $ReadJob.Name | Out-Null
 			}
 		}
