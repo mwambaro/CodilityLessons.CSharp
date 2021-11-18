@@ -112,6 +112,82 @@ Function Write-Log
 
 } # Write-Log 
 
+Function Get-SocketInformation 
+{
+	[CmdletBinding()]
+	param 
+	(
+		[Parameter(Mandatory=$false, ValueFromPipeline=$true)] 
+		[Microsoft.Management.Infrastructure.CimSession]$CimSession=$null,
+		[Parameter(Mandatory=$false)]
+		[System.String]$InterfaceAlias="Bluetooth"
+	)
+
+	$Function = $MyInvocation.MyCommand.Name 
+	$SocketInformation = $null
+
+	try 
+	{
+		if($CimSession -eq $null)
+        {
+            $CimSession = New-CimSession
+        }
+
+		$Config = Get-NetIPConfiguration -CimSession $CimSession
+		$IfConfig = $Config | Where {$_.NetAdapter.Name -Match $InterfaceAlias}
+		if($null -eq $IfConfig) 
+		{
+			return $SocketInformation
+		}
+
+		$AddressFamily = [System.String]::Empty 
+		$IPAddress = [System.String]::Empty 
+		$ProtocolType = [System.Net.Sockets.ProtocolType]::Unknown
+		if($IfConfig.IPv4Address)
+		{
+			$AddressFamily = [System.Net.Sockets.AddressFamily]::InterNetwork
+			$IPAddress = $IfConfig.IPv4Address.IPAddress
+			$ProtocolType = [System.Net.Sockets.ProtocolType]::IPv4
+		}
+		elseif($IfConfig.IPv6Address) 
+		{
+			$AddressFamily = [System.Net.Sockets.AddressFamily]::InterNetworkV6
+			$IPAddress = $IfConfig.IPv6Address.IPAddress
+			$ProtocolType = [System.Net.Sockets.ProtocolType]::IPv6
+		}
+
+		$Connected = $true
+		if($IfConfig.NetAdapter.Status.ToString() -Match "\ADisconnected\Z")
+		{
+			$Connected = $false
+		}
+		$IPAddr = $null
+		if(-not [System.String]::IsNullOrEmpty($IPAddress))
+		{
+			$IPAddr = [System.Net.IPAddress]::Parse($IPAddress)
+		}
+
+		$SocketType = [System.Net.Sockets.SocketType]::Unknown
+
+		$SocketInformation = @{
+			Connected = $Connected;
+			AddressFamily = $AddressFamily;
+			IPAddress = $IPAddr;
+			ProtocolType = $ProtocolType;
+			PortNumber = 12456;
+			SocketType = $SocketType
+		}
+		
+	} 
+	catch 
+	{
+		Write-Log -Function $Function -Exception $_
+	}
+
+	return $SocketInformation
+
+} # Get-SocketInformation
+
 # <summary> Interpretes data from client pipe according to its defined format </summary> 
 # <param name="PipeData"> The formatted pipe data </param>
 # <details>

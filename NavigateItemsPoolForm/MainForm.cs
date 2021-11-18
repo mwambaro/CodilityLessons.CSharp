@@ -48,7 +48,8 @@ namespace NavigateItemsPoolForm
             this.NavigationModeCheckedListBox.SetItemChecked(0, true);
             ReferenceTextCharacterSize = AssessTextCharacterSize();
             PipeWriteAsyncReturn += new AsyncOperationReturn(this.OnReturningFromAsyncPipeOperation);
-            ReadConfigurationData(this);
+            ReadConfigurationData();
+            ProcessBluetoothCommand();
 
         } // MainForm
 
@@ -441,14 +442,13 @@ namespace NavigateItemsPoolForm
 
         } // WriteFeedback
 
-        private Task ReadConfigurationData(MainForm form)
+        private Task ReadConfigurationData()
         {
             Task task = Task.Factory.StartNew(new Action(() =>
             { 
                 try
                 {
                     string ConfigData = System.String.Empty;
-                    MainForm f = form;
                     int size = 4096;
                     var buffer = new byte[size];
 
@@ -466,8 +466,6 @@ namespace NavigateItemsPoolForm
 
                         if (!Pipe.IsConnected)
                         {
-                            string verbose = "Pipe is not connected. Connecting ... ";
-                            WriteVerbose(verbose, true, "White", f);
                             try
                             {
                                 Pipe.Connect(1000);
@@ -483,26 +481,22 @@ namespace NavigateItemsPoolForm
 
                         if(Pipe.IsConnected)
                         {
-                            WriteVerbose("OK", false, "White", f);
                             var T = Pipe.ReadAsync(buffer, 0, 1);
                             if(T.IsCompleted)
                             {
                                 ConfigData = Encoding.GetString(buffer);
-                                if(ConfigData.StartsWith("Configuration", StringComparison.OrdinalIgnoreCase))
+                                if(System.String.IsNullOrEmpty(ConfigData))
                                 {
-                                    WriteVerbose
-                                    (
-                                        "We have configuration data", false, 
-                                        "White", f
-                                    );
+                                    continue;
+                                }
+
+                                if(ConfigData.StartsWith("Configuration", StringComparison.OrdinalIgnoreCase))
+                                { 
+                                    // Use configuration data
+                                    
                                 }
                                 else
                                 {
-                                    WriteVerbose
-                                    (
-                                        "The data is not configuration data", false, 
-                                        "White", f
-                                    );
                                     // Clean buffer
                                     for (int i = 0; i < buffer.Count(); i++)
                                     {
@@ -512,9 +506,8 @@ namespace NavigateItemsPoolForm
                                 }
                             }
                         } 
-                        else
+                        else // Could not connect
                         {
-                            WriteVerbose("FAILED", false, "White", f);
                         }
                     }
                     while (System.String.IsNullOrEmpty(ConfigData));
@@ -528,6 +521,25 @@ namespace NavigateItemsPoolForm
             return task;
 
         } // ReadConfigurationData
+
+        private Task ProcessBluetoothCommand()
+        {
+            Task task = Task.Factory.StartNew(() => 
+            { 
+                try
+                {
+                    // Find high level wrapper classes that give you access to
+                    // bluetooth IO data.
+                }
+                catch(Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("ProcessBluetoothCommand: " + ex.Message);
+                }
+            });
+
+            return task;
+
+        } // ProcessBluetoothCommand
 
         private string InterpreteFeedbackFromPipeServerStream(string data)
         {
