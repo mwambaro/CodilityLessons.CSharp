@@ -704,7 +704,10 @@ Function Send-FrontendConfigData
 	(
 		[parameter(Mandatory=$true, ValueFromPipeline=$true)]
 		[ValidateNotNull()]
-		[System.IO.Pipes.NamedPipeServerStream]$ServerPipe
+		[System.IO.Pipes.NamedPipeServerStream]$ServerPipe,
+		[parameter(Mandatory=$true)]
+		[ValidateNotNullOrEmpty()]
+		[System.String]$UriDataJson
 	)
 
 	$Function = $MyInvocation.MyCommand.Name
@@ -768,7 +771,10 @@ Function Get-CommandFromFrontend
 		[parameter(ValueFromPipeline=$true)]
 		[ValidateNotNullOrEmpty()]
 		[System.String]$PipeName="ItemsPoolNavigationCommandPipe",
-		[bool]$BackgroundJob=$false
+		[bool]$BackgroundJob=$false,
+		[parameter(Mandatory=$true)]
+		[ValidateNotNullOrEmpty()]
+		[System.String]$UriDataJson
 	)
 
 	$Function = $MyInvocation.MyCommand.Name
@@ -823,7 +829,7 @@ Function Get-CommandFromFrontend
 							# One-time write config data to client 
 							if($Counter -eq 0) 
 							{
-								$Job = Send-FrontendConfigData -ServerPipe $ServerPipe
+								$Job = Send-FrontendConfigData -ServerPipe $ServerPipe -UriDataJson $UriDataJson
 							}
 							$Counter = 1
 							
@@ -881,4 +887,4 @@ Function Get-CommandFromFrontend
 
 } # Get-CommandFromFrontend
 
-Export-ModuleMember -Function Use-CommandFromFrontend, Confirm-CommandExecutionToFrontend, Get-CommandFromFrontend
+Export-ModuleMember -Function Use-CommandFromFrontend, Confirm-CommandExecutionToFrontend, Get-CommandFromFrontend, Get-ItemCategoriesAndSources
