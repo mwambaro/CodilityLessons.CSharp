@@ -1,7 +1,7 @@
 ﻿
 param
 (
-	[parameter(Mandatory=$true, ValueFromPipeline=$true)]
+	[parameter(Mandatory=$false, ValueFromPipeline=$true)]
 	[ValidateNotNullOrEmpty()]
 	[System.String]$ServerPipeName,
 	[switch]$LoadScript
@@ -32,6 +32,7 @@ Function Get-ItemCategoriesAndSources
 
 if(-not $LoadScript.IsPresent)
 {
+	
 	$Data = Get-ItemCategoriesAndSources 
 	if($Data) 
 	{

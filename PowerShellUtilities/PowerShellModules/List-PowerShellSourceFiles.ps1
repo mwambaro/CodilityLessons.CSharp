@@ -46,21 +46,30 @@ Function Display-ProgressBar
 Function Get-PSSourceFilesDirectories
 {
 	[CmdLetBinding()]
+	param 
+	(
+		[switch]$ProgressBar=$false
+	)
+
+	if(-not [System.String]::IsNullOrEmpty($env:PSModulePath))
+	{
+		return $env:PSModulePath.Split(";")
+	}
 	
-	# Progress bar
-	$Script:EntryCount += 4
-	Display-ProgressBar -Activity $Script:Activity ` 
-	                    -Status "Get-PSSourceFilesDirectories: Leveraging Get-Module CmdLet" ` 
-						-CurrentEntryCount $Script:EntryCount
+	if($ProgressBar)
+	{
+		$Script:EntryCount += 4
+		Display-ProgressBar -Activity $Script:Activity -Status "Get-PSSourceFilesDirectories: Leveraging Get-Module CmdLet" -CurrentEntryCount $Script:EntryCount
+	}
 
 	$OutFile = Join-Path $Home "PSModulesList.txt"
 	Get-Module -ListAvailable -All > "$OutFile"
 
-	# Progress bar
-	$Script:EntryCount =+ 25
-	Display-ProgressBar -Activity $Script:Activity ` 
-	                    -Status "Get-PSSourceFilesDirectories: Processing Get-Module CmdLet Output" `
-						-CurrentEntryCount $Script:EntryCount
+	if($ProgressBar)
+	{
+		$Script:EntryCount =+ 25
+		Display-ProgressBar -Activity $Script:Activity -Status "Get-PSSourceFilesDirectories: Processing Get-Module CmdLet Output" -CurrentEntryCount $Script:EntryCount
+	}
 
 	$Directories = @()
 	$ToSkip = @()
@@ -70,15 +79,15 @@ Function Get-PSSourceFilesDirectories
 	
 	for($i=0; $i -lt $Lines.Count; $i++)
 	{
-		# Progress bar
-		if(0 -eq ($i % $ProgressBarStep))
+		if($ProgressBar)
 		{
-			$Script:EntryCount =+ 1
+			if(0 -eq ($i % $ProgressBarStep))
+			{
+				$Script:EntryCount =+ 1
+			}
+			Display-ProgressBar -Activity $Script:Activity -Status "Get-PSSourceFilesDirectories: Processing line $i" -CurrentEntryCount $Script:EntryCount
 		}
-		Display-ProgressBar -Activity $Script:Activity `
-		                    -Status "Get-PSSourceFilesDirectories: Processing line $i" `
-							-CurrentEntryCount $Script:EntryCount
-		
+
 		if([System.String]::IsNullOrEmpty($Lines[$i]))
 		{
 			continue
@@ -162,6 +171,10 @@ Function Get-PSSourceFilesDirectories
 Function List-PSSourceFiles
 {
 	[CmdLetBinding()]
+	param 
+	(
+		[switch]$ProgressBar=$false
+	)
 
 	$ScriptsH = $null
 	$ModulesH = $null
@@ -169,17 +182,22 @@ Function List-PSSourceFiles
 	$Scripts = @()
 	$Dirs = Get-PSSourceFilesDirectories
 
-	# Progress bar
-	$RemCount = [System.Math]::Floor
-	(
-		($Script:TotalEntryCount-$Script:EntryCount) / $Dirs.Count
-	)
-	Display-ProgressBar -Activity $Script:Activity `
-	                    -Status "List-PSSourceFiles: Searching Module Directories" `
-						-CurrentEntryCount $Script:EntryCount
-	
+	if($ProgressBar)
+	{
+		$RemCount = [System.Math]::Floor
+		(
+			($Script:TotalEntryCount-$Script:EntryCount) / $Dirs.Count
+		)
+		Display-ProgressBar -Activity $Script:Activity -Status "List-PSSourceFiles: Searching Module Directories" -CurrentEntryCount $Script:EntryCount
+	}
+
 	foreach($dir in $Dirs)
 	{	
+		if(!(Test-Path $dir -PathType Container))
+		{
+			continue
+		}
+
 		$Items = $dir | Get-ChildItem -File -Recurse | Sort -Property Name
 
 		$ProgressBarStep = [System.Math]::Floor
@@ -190,15 +208,15 @@ Function List-PSSourceFiles
 		$i = 0
 		foreach($item in $Items)
 		{
-			# Progress bar
-			if(0 -eq ($i % $ProgressBarStep))
+			if($ProgressBar)
 			{
-				$Script:EntryCount =+ 1
+				if(0 -eq ($i % $ProgressBarStep))
+				{
+					$Script:EntryCount =+ 1
+				}
+				Display-ProgressBar -Activity $Script:Activity -Status "List-PSSourceFiles: PS Item [$($item.Name)]" -CurrentEntryCount $Script:EntryCount
 			}
-			Display-ProgressBar -Activity $Script:Activity `
-			                    -Status "List-PSSourceFiles: PS Item [$($item.Name)]" `
-								-CurrentEntryCount $Script:EntryCount
-			
+
 			if($item.FullName -Match "\.ps\d\Z")
 			{
 				$Scripts += $item.FullName
@@ -254,14 +272,15 @@ Function Write-PSSourceFilesForDisplay
 		[System.Collections.Hashtable[]]$SourceFiles,
 		[parameter(Mandatory=$true, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
 		[ValidateSet('Module', 'Script')]
-		[System.String]$SourceType
+		[System.String]$SourceType,
+		[switch]$ProgressBar=$false
 	)
 
-	# Progress bar
-	$Script:EntryCount += 2
-	Display-ProgressBar -Activity $Script:Activity `
-	                    -Status "Write-PSSourceFilesForDisplay: Parsing sources" `
-						-CurrentEntryCount $Script:EntryCount
+	if($ProgressBar)
+	{
+		$Script:EntryCount += 2
+		Display-ProgressBar -Activity $Script:Activity -Status "Write-PSSourceFilesForDisplay: Parsing sources" -CurrentEntryCount $Script:EntryCount
+	}
 
 	# For Progress bar
 	$ItemsCount = 0
@@ -297,14 +316,14 @@ Function Write-PSSourceFilesForDisplay
 
 			$dir = $dirs[$i].Trim()
 
-			# Progress bar
-			if(0 -eq ($Counter % $ProgressBarStep))
+			if($ProgressBar)
 			{
-				$Script:EntryCount =+ 1
+				if(0 -eq ($Counter % $ProgressBarStep))
+				{
+					$Script:EntryCount =+ 1
+				}
+				Display-ProgressBar -Activity $Script:Activity -Status "Write-PSSourceFilesForDisplay: Writing source files names from [$dir] to [$File]" -CurrentEntryCount $Script:EntryCount
 			}
-			Display-ProgressBar -Activity $Script:Activity `
-			                    -Status "Write-PSSourceFilesForDisplay: Writing source files names from [$dir] to [$File]" `
-								-CurrentEntryCount $Script:EntryCount
 
 			$dirregex = [System.Text.RegularExpressions.Regex]::Escape($dir)
 			if($sources.ContainsKey($dir))

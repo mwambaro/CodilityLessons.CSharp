@@ -26,6 +26,7 @@ $ItemCategoriesAndSources = @{
 	);
 
 	# JSON
+	# e.g URL: www.pagesbleues-rims.com
 	UriDataJson = @"
 	{
 		"$($Localized.Local)": {

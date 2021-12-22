@@ -5,6 +5,7 @@ using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -288,6 +289,19 @@ namespace NavigateItemsPoolForm
 
         #region Helper Methods
 
+        private void LocalizeUI(CultureInfo culture)
+        { 
+            try
+            { 
+                
+            }
+            catch(Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("LocalizeUI: " + ex.Message);
+            }
+
+        } // LocalizeUI
+
         private void HideFeedbackPanel(MainForm form)
         { 
             try
@@ -425,7 +439,7 @@ namespace NavigateItemsPoolForm
         {
             try
             {
-                string msg = message; 
+                string msg = message;
 
                 // Show feedback
                 form.FeedbackRichTextBox.Text = msg;
@@ -475,7 +489,7 @@ namespace NavigateItemsPoolForm
                                 System.Diagnostics.Debug.WriteLine
                                 (
                                     "ReadConfigurationData: " + ex.Message
-                                );
+                                ); 
                             }
                         }
 

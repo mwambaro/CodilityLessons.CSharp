@@ -67,7 +67,6 @@ namespace NavigateItemsPoolForm
             this.FeedbackPanelOkButton.Name = "FeedbackPanelOkButton";
             this.FeedbackPanelOkButton.Size = new System.Drawing.Size(75, 33);
             this.FeedbackPanelOkButton.TabIndex = 2;
-            this.FeedbackPanelOkButton.Text = Resources.Resource.ResourceManager.GetString("OK");
             this.FeedbackPanelOkButton.UseVisualStyleBackColor = true;
             this.FeedbackPanelOkButton.Click += new System.EventHandler(this.OnFeedbackPanelOkButtonClicked);
             // 
@@ -105,7 +104,6 @@ namespace NavigateItemsPoolForm
             this.ButtonDownload.Name = "ButtonDownload";
             this.ButtonDownload.Size = new System.Drawing.Size(75, 41);
             this.ButtonDownload.TabIndex = 9;
-            this.ButtonDownload.Text = Resources.Resource.ResourceManager.GetString("Download");
             this.ButtonDownload.UseVisualStyleBackColor = true;
             this.ButtonDownload.Click += new System.EventHandler(this.OnCommandButtonClicked);
             // 
@@ -115,7 +113,6 @@ namespace NavigateItemsPoolForm
             this.ButtonUpload.Name = "ButtonUpload";
             this.ButtonUpload.Size = new System.Drawing.Size(75, 41);
             this.ButtonUpload.TabIndex = 8;
-            this.ButtonUpload.Text = Resources.Resource.ResourceManager.GetString("Upload");
             this.ButtonUpload.UseVisualStyleBackColor = true;
             this.ButtonUpload.Click += new System.EventHandler(this.OnCommandButtonClicked);
             // 
@@ -125,7 +122,6 @@ namespace NavigateItemsPoolForm
             this.ButtonAutomatic.Name = "ButtonAutomatic";
             this.ButtonAutomatic.Size = new System.Drawing.Size(87, 41);
             this.ButtonAutomatic.TabIndex = 3;
-            this.ButtonAutomatic.Text = Resources.Resource.ResourceManager.GetString("Automatic");
             this.ButtonAutomatic.UseVisualStyleBackColor = true;
             this.ButtonAutomatic.Click += new System.EventHandler(this.OnCommandButtonClicked);
             // 
@@ -135,7 +131,6 @@ namespace NavigateItemsPoolForm
             this.ButtonNext.Name = "ButtonNext";
             this.ButtonNext.Size = new System.Drawing.Size(97, 41);
             this.ButtonNext.TabIndex = 1;
-            this.ButtonNext.Text = Resources.Resource.ResourceManager.GetString("Next");
             this.ButtonNext.UseVisualStyleBackColor = true;
             this.ButtonNext.Click += new System.EventHandler(this.OnCommandButtonClicked);
             // 
@@ -145,7 +140,6 @@ namespace NavigateItemsPoolForm
             this.ButtonPrevious.Name = "ButtonPrevious";
             this.ButtonPrevious.Size = new System.Drawing.Size(91, 41);
             this.ButtonPrevious.TabIndex = 0;
-            this.ButtonPrevious.Text = Resources.Resource.ResourceManager.GetString("Previous");
             this.ButtonPrevious.UseVisualStyleBackColor = true;
             this.ButtonPrevious.Click += new System.EventHandler(this.OnCommandButtonClicked);
             // 
@@ -170,9 +164,9 @@ namespace NavigateItemsPoolForm
             // 
             this.NavigationModeCheckedListBox.FormattingEnabled = true;
             this.NavigationModeCheckedListBox.Items.AddRange(new object[] {
-            Resources.Resource.ResourceManager.GetString("Loop"),
-            Resources.Resource.ResourceManager.GetString("Random"),
-            Resources.Resource.ResourceManager.GetString("Select")});
+            "Loop",
+            "Random",
+            "Select"});
             this.NavigationModeCheckedListBox.Location = new System.Drawing.Point(184, 35);
             this.NavigationModeCheckedListBox.Name = "NavigationModeCheckedListBox";
             this.NavigationModeCheckedListBox.Size = new System.Drawing.Size(92, 49);
@@ -212,24 +206,21 @@ namespace NavigateItemsPoolForm
             this.SettingsMenuItem.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.SettingsMenuItem.ForeColor = System.Drawing.Color.White;
             this.SettingsMenuItem.Name = "SettingsMenuItem";
-            this.SettingsMenuItem.Size = new System.Drawing.Size(65, 20);
-            this.SettingsMenuItem.Text = Resources.Resource.ResourceManager.GetString("Settings");
+            this.SettingsMenuItem.Size = new System.Drawing.Size(12, 20);
             // 
             // HelpMenuItem
             // 
             this.HelpMenuItem.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.HelpMenuItem.ForeColor = System.Drawing.Color.White;
             this.HelpMenuItem.Name = "HelpMenuItem";
-            this.HelpMenuItem.Size = new System.Drawing.Size(45, 20);
-            this.HelpMenuItem.Text = Resources.Resource.ResourceManager.GetString("Help");
+            this.HelpMenuItem.Size = new System.Drawing.Size(12, 20);
             // 
             // AboutMenuItem
             // 
             this.AboutMenuItem.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.AboutMenuItem.ForeColor = System.Drawing.Color.White;
             this.AboutMenuItem.Name = "AboutMenuItem";
-            this.AboutMenuItem.Size = new System.Drawing.Size(53, 20);
-            this.AboutMenuItem.Text = Resources.Resource.ResourceManager.GetString("About");
+            this.AboutMenuItem.Size = new System.Drawing.Size(12, 20);
             // 
             // MainForm
             // 
@@ -246,10 +237,9 @@ namespace NavigateItemsPoolForm
             this.Controls.Add(this.ItemsCategoryComboBox);
             this.Controls.Add(this.ButtonNext);
             this.Controls.Add(this.ButtonPrevious);
-            this.Controls.Add(this.FeedbackPanel);
             this.Controls.Add(this.MainMenuStrip);
+            this.Controls.Add(this.FeedbackPanel);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-            this.MainMenuStrip = this.MainMenuStrip;
             this.MaximizeBox = false;
             this.Name = "MainForm";
             this.Text = "Navigate Items Pool - Form";

@@ -64,7 +64,7 @@ Function Write-Log
 		
 		if(-not (Test-Path $directory -PathType Container))
 		{
-			mkdir $directory | Out-Null
+			$null = New-Item -Path $directory -ItemType Directory
 		}
 
 		$lines = [System.Collections.Generic.List[string]]::new()
@@ -887,4 +887,4 @@ Function Get-CommandFromFrontend
 
 } # Get-CommandFromFrontend
 
-Export-ModuleMember -Function Use-CommandFromFrontend, Confirm-CommandExecutionToFrontend, Get-CommandFromFrontend, Get-ItemCategoriesAndSources
+Export-ModuleMember -Function Use-CommandFromFrontend, Confirm-CommandExecutionToFrontend, Get-*
