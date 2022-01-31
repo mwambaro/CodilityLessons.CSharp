@@ -292,8 +292,7 @@ namespace NavigateItemsPoolForm
         private void LocalizeUI(CultureInfo culture)
         { 
             try
-            { 
-                
+            {
             }
             catch(Exception ex)
             {

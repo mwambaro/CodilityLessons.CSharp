@@ -11,7 +11,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PowerShellUtilities", "Powe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NavigateItemsPoolForm", "NavigateItemsPoolForm\NavigateItemsPoolForm.csproj", "{D6413988-8128-4C27-8423-502F98731E93}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NavigateItemsPoolForm.Tests", "NavigateItemsPoolForm.Tests\NavigateItemsPoolForm.Tests.csproj", "{4AE08538-CDA9-42DF-A94F-E57DC0F95EA9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NavigateItemsPoolForm.Tests", "NavigateItemsPoolForm.Tests\NavigateItemsPoolForm.Tests.csproj", "{4AE08538-CDA9-42DF-A94F-E57DC0F95EA9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
