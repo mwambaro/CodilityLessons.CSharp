@@ -40,43 +40,40 @@ Function Select-ResearchResources
 
 		$ZipPattern = "(\.7z)\Z|(\.rar)\Z|(\.zip)\Z|(\.tar)\Z|(\.tar\.bz2)\Z|(\.tar\.gz)\Z"
 
-		Get-ChildItem -Path $ResearchResourcesFolder -File -Recurse -ErrorAction SilentlyContinue | ? Name -Match $ZipPattern | % {
+		Get-ChildItem -Path $ResearchResourcesFolder -File -ErrorAction SilentlyContinue | ? Name -Match $ZipPattern | % {
 
 			if($_.Name -Match $Pattern) # The entire archive is a match
 			{
 				$ResearchResources += $_.FullName
+				Write-Output "Archive: $($_.FullName)"
 			}
 			else # Look inside the archive
 			{
-				# Repetition the "| ? Name -Match $ZipPattern" is more than enough
-				if($_.Name -Match $ZipPattern) 
+				$contents = (& $7zipAppExecutableFullPath l -r "$($_.FullName)") -split "\r\n"
+				Write-Output "Files: $($contents[-3])"
+				$indices = @()
+				for($i=0; $i -lt $contents.Count; $i++) 
 				{
-					$contents = & $7zipAppExecutableFullPath l -r "$($_.FullName)"
-					$indices = @()
-					for($i=0; $i -lt $contents.Count; $i++) 
+					if($contents[$i] -Match "-{3,}")
 					{
-						if($contents[$i] -Match "-{3,}")
+						$indices += $i 
+						continue
+					}
+					#Write-Output "Count: $($indices.Count)"
+					if($indices.Count -lt 2 -and $indices.Count -gt 1) 
+					{
+						$file = ($contents[$i] -split "\s{2,}")[-1].Trim()
+						if(-not [Systemm.String]::IsNullOrEmpty($file)) 
 						{
-							$indices += $i 
-							continue
-						}
-						if($indices.Count -lt 1 -and $indices.Count -gt 0) 
-						{
-							$file = ($contents[$i] -split " ")[-1].Trim()
-							if(-not [Systemm.String]::IsNullOrEmpty($file)) 
+							if($file -Match $Pattern)
 							{
-								if($file -Match $Pattern)
-								{
-									$ResearchResources += "$($_.FullName):$file"
-								}
+								$ResearchResources += "$($_.FullName):$file"
 							}
 						}
 					}
 				}
 			}
 		}
-
-		Write-Progress	-Activity "Select Research Resources" -Completed
 	}
 	catch 
 	{
