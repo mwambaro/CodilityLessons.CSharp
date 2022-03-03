@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>Windows Management Instrumentation (WMI) Classes Documentation</title>
+	<link rel="stylesheet" href="cmn/css/normalize.css" />
+	<link rel="stylesheet" href="cmn/css/base.css" />
+	
+	<!--[if lt IE 9]>
+	<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+</head>
+
+<body>
+<header role="banner">
+	<p class="series">Visual <span>Windows Management Instrumentation </span> Documentation</p>
+	
+	<div id="masthead" class="clearfix">
+		<p class="title"><a href="http://www.bruceontheloose.com/htmlcss/" rel="external" title="To companion site">WMI<span>5</span> and PowerShell<span>5</span></a> <small>First Version</small></p>
+	
+		<p class="authors">Obed-Edom Nkezabahizi <span>&#8226;</span> Tobias Weltner</p>
+	</div>
+</header>
+
+<!-- ===== START NAV ===== -->
+<div class="sidebar" id="nav">
+		<a href="http://www.bruceontheloose.com/htmlcss/" rel="external" title="To companion site"><img src="img/html5-css3-cover.jpg" width="160" height="207" alt="&quot;WMI and PowerShell&quot; documentation" /></a>
+		
+	<h2>WMI Classes:</h2>
+	
+	<nav role="navigation">
+		<ul>
+			<li><a href="#WmiClasses-A" title="WMI Classes A code">A</a></li>
+			<li><a href="#WmiClasses-B" title="Wmi Classes B code">B</a></li>
+			<li><a href="#WmiClasses-C" title="Wmi Classes C code">C</a></li>
+			<li><a href="#WmiClasses-D" title="Wmi Classes D code">D</a></li>
+			<li><a href="#WmiClasses-E" title="Wmi Classes E code">E</a></li>
+			<li><a href="#WmiClasses-F" title="Wmi Classes F code">F</a></li>
+			<li><a href="#WmiClasses-G" title="Wmi Classes G code">G</a></li>
+			<li><a href="#WmiClasses-H" title="Wmi Classes H code">H</a></li>
+			<li><a href="#WmiClasses-I" title="Wmi Classes I code">I</a></li>
+			<li><a href="#WmiClasses-J" title="Wmi Classes J code">J</a></li>
+			<li><a href="#WmiClasses-K" title="Wmi Classes K code">K</a></li>
+			<li><a href="#WmiClasses-L" title="Wmi Classes L code">L</a></li>
+			<li><a href="#WmiClasses-M" title="Wmi Classes M code">M</a></li>
+			<li><a href="#WmiClasses-N" title="Wmi Classes N code">N</a></li>
+			<li><a href="#WmiClasses-O" title="Wmi Classes O code">O</a></li>
+			<li><a href="#WmiClasses-P" title="Wmi Classes P code">P</a></li>
+			<li><a href="#WmiClasses-Q" title="Wmi Classes Q code">Q</a></li>
+			<li><a href="#WmiClasses-R" title="Wmi Classes R code">R</a></li>
+			<li><a href="#WmiClasses-S" title="Wmi Classes S code">S</a></li>
+            <li><a href="#WmiClasses-T" title="Wmi Classes T code">T</a></li>
+            <li><a href="#WmiClasses-U" title="Wmi Classes U code">U</a></li>
+            <li><a href="#WmiClasses-V" title="Wmi Classes V code">V</a></li>
+            <li><a href="#WmiClasses-W" title="Wmi Classes W code">W</a></li>
+            <li><a href="#WmiClasses-X" title="Wmi Classes X code">X</a></li>
+            <li><a href="#WmiClasses-Y" title="Wmi Classes S code">Y</a></li>
+            <li><a href="#WmiClasses-Z" title="Wmi Classes Z code">Z</a></li>
+		</ul>
+	</nav>
+</div>
+<!-- end nav -->
+
+<!-- ===== START MAIN CONTENT ===== -->
+<div role="main" class="code">
+	<h1>WMI Classes Description</h1>
+	
+	<header>
+		<p class="intro">Scroll down the page or select a letter from the left to view the WMI classes description.</p>
+		
+		<div class="note">
+			<p><strong>Note:</strong></p>
+			<ul>
+				<li>The PowerShell code run to generate this documentation comes from the <abbr title="PDF publication">PDF</abbr> version of the book “Mastering PowerShell”, by Dr. Tobias Weltner.</li>
+				<li>Some classes are missing in this documentation due to lacking description on-board.</li>
+				<li>Not all methods and properties of the classes exhibit description.</li>
+				<li>Some letters may lead to no WMI classes at all, so no surprise.</li>
+			</ul>
+		</div>
+	</header>
+    <!-- BEGIN -->
+    <p><a href="#nav">Back to Top</a></p>
+
+	<h2 id="WmiClasses-C"><span>[Root]</span> CIM_ClassIndication </h2>
+	<ol>
+		<li style="list-style: none">
+            CIM_ClassIndication is an abstract superclass describing changes in the definition of the schema. Subclasses represent specific types of change notifications, such as class creation, deletion and modification.
+		</li>
+        <li style="list-style: none">
+            <b>Properties:</b>
+		</li>
+		<li>
+            <b>ClassDefinition:</b> The current definition of the class that is created, changed or deleted in the schema. In the case of a CIM_ClassDeletion Indication, the definition for the class just prior to deletion should be placed in this property.
+		</li>
+        <li>
+            <b>CorrelatedIndications:</b> A list of IndicationIdentifiers whose notifications are correlated with (related to) this one.
+		</li>
+        <li>
+            <b>IndicationFilterName:</b> An identifier for the indication filter that selects this indication and causes it to be sent. This property is to be filled out by the indication sending service. The value shall be correlatable with the Name property of the instance of CIM_IndicationFilter describing the criteria of the indication. The value of the IndicationFilterName should be formatted using the following algorithm: < OrgID > : < LocalID >, where < OrgID > and < LocalID > are separated by a colon (:) and < OrgID > shall include a copyrighted, trademarked, or otherwise unique name that is owned by the business entity that is creating or defining the value or that is a registered ID assigned to the business entity by a recognized global authority. In addition, to ensure uniqueness, < OrgID > shall not contain a colon (:).When using this algorithm, the first colon to appear in the value shall appear between < OrgID > and < LocalID >. < LocalID > is chosen by the business entity and shall be used uniquely.
+		</li>
+        <li style="list-style: none">
+            <b>Methods:</b>
+		</li>
+		<li>
+            ${WmiClassMethodDescription}
+		</li>
+	</ol>
+	
+	<p><a href="#nav">Back to Top</a></p>
+
+    <h2 id="WmiClasses-C1"><span>[Root]</span> CIM_InstModification </h2>
+	<ol>
+		<li style="list-style: none">
+            CIM_InstModification notifies when an instance is modified.
+		</li>
+        <li style="list-style: none">
+            <b>Properties:</b>
+		</li>
+        <li>
+            <b>CorrelatedIndications:</b> A list of IndicationIdentifiers whose notifications are correlated with (related to) this one.
+		</li>
+        <li>
+            <b>IndicationFilterName:</b> An identifier for the indication filter that selects this indication and causes it to be sent. This property is to be filled out by the indication sending service. The value shall be correlatable with the Name property of the instance of CIM_IndicationFilter describing the criteria of the indication. The value of the IndicationFilterName should be formatted using the following algorithm: < OrgID > : < LocalID >, where < OrgID > and < LocalID > are separated by a colon (:) and < OrgID > shall include a copyrighted, trademarked, or otherwise unique name that is owned by the business entity that is creating or defining the value or that is a registered ID assigned to the business entity by a recognized global authority. In addition, to ensure uniqueness, < OrgID > shall not contain a colon (:).When using this algorithm, the first colon to appear in the value shall appear between < OrgID > and < LocalID >. < LocalID > is chosen by the business entity and shall be used uniquely.
+		</li>
+        <li style="list-style: none">
+            <b>Methods:</b>
+		</li>
+		<li>
+            ${WmiClassMethodDescription}
+		</li>
+	</ol>
+	
+	<p><a href="#nav">Back to Top</a></p>
+	<!-- END -->
+
+</div>
+
+<footer role="contentinfo">
+	<p class="copyright"><small>&copy; Copyright 2022 laastras.herokuapp.com. All rights reserved.</small></p>
+</footer>
+</body>
+</html>

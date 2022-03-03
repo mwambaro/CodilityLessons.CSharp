@@ -22,11 +22,8 @@ Function List-DllModules
 	any other convenient way.
 	#>
 
-	$assemblies = @()
-
-	# From loaded assemblies
-	$assemblies = [AppDomain]::CurrentDomain.GetAssemblies() | % { 
-		$assembly = $_
+	$ListAssemblies = { 
+		param($assembly)
 		if($assembly.PSObject.Methods.Name -Contains "GetExportedTypes")
 		{
 			$assembly.GetExportedTypes() | % {
@@ -44,8 +41,23 @@ Function List-DllModules
 		}
 	} 
 
+	$assemblies = @()
+
+	# From loaded assemblies
+	[AppDomain]::CurrentDomain.GetAssemblies() | %  {
+		& $ListAssemblies $_
+	}
+
 	# From scanning: 
 	# You must check whether a DLL is a .NET Intermediary Language assembly, first
+	Dir C: -Recurse |? Name -Match "\.dll\Z" | % {
+		try 
+		{
+			$assembly = [System.Reflection.Assembly]::LoadWithPartialName($_.Name)
+			& $ListAssemblies $assembly
+		} catch 
+		{}
+	}
 
 	return $assemblies
 

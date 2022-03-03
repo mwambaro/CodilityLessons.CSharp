@@ -14,7 +14,7 @@
 		   should be of system type and should leverage the targetted development 
 		   languages. Maintain a database of all these tasks and books used to fetch 
 		   these practical and best practices subjects: 'UEFI Specification', 
-		   'Design Patterns', 'System Design and Analysis', and 
+		   'Design Patterns', 'System Design and Analysis', 'DBMS: Mastering SQL Server', and 
 		   'Build, Containerize, and Deploy Automation'. 
 	C. Weekly Time Table:
 		1. Fri: 
@@ -27,7 +27,7 @@
 			12:00-13:00: Lunch break 
 			13:00-15:00: C# and/or PowerShell system-type tasks development.
 			15:00-16:00: Break 
-			16:00-18:00: Development Best Practices Subjects. 
+			16:00-18:00: Development Best Practices Subjects (SDLC and/or DBMS). 
 			22:00-07:00: Bedtime
 	D. This module:
 		1. Write an HTML DOC that leverages PowerShell string interpolation. 
