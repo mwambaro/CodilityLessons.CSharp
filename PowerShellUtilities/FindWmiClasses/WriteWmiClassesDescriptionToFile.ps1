@@ -28,21 +28,30 @@ $ProcessTemplateIntoHtmlFile = {
 	$template = Join-Path $ScriptDir "Html_template.html"
 	$FileFullName = Join-Path $ScriptDir "Html_file.html"
 
-	$contents = Get-Content -Path $template -Encoding String
+	$contents = Get-Content -Path $template
 
-	Write-Output $contents
+	Write-Host -NoNewLine "Processing template ... "
 
-	if($contents -Match "<!--\s*begin\s*-->")
+	if($contents.ToString() -Match "<!--\s*begin\s*-->")
 	{
 		$begin = $contents.IndexOf($Matches[0])
 	}
-	if($contents -Match "<!--\s*end\s*-->")
+	if($contents.ToString() -Match "<!--\s*end\s*-->")
 	{
 		$end = $contents.IndexOf($Matches[0]) + $Matches[0].Length - 1
 	}
+    
+	if($begin -gt 0 -and $end -gt 0) 
+	{
+		Write-Host -ForegroundColor Green "OK"
 
-	$html = $contents.Substring(0, $begin) + $Payload + $contents.Substring($end, ($contents.Length-$end))
-	Out-File -FilePath $FileFullName -Encoding UTF8 -InputObject $html | Out-Null
+		$html = $contents.Substring(0, $begin) + $Payload + $contents.Substring($end, ($contents.Length-$end))
+		Out-File -FilePath $FileFullName -Encoding UTF8 -InputObject $html | Out-Null
+	}
+	else 
+	{
+		Write-Host -ForegroundColor Red "FAILED"
+	}
 
 } # ProcessTemplateIntoHtmlFile
 

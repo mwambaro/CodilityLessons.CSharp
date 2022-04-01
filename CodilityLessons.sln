@@ -13,6 +13,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NavigateItemsPoolForm", "Na
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NavigateItemsPoolForm.Tests", "NavigateItemsPoolForm.Tests\NavigateItemsPoolForm.Tests.csproj", "{4AE08538-CDA9-42DF-A94F-E57DC0F95EA9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "W3ResourceLessons", "W3ResourceLessons\W3ResourceLessons.csproj", "{6A0AE0DB-3472-4F5F-A649-EEE08C31CE7E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "W3ResourceLessons.Tests", "W3ResourceLessons.Tests\W3ResourceLessons.Tests.csproj", "{2D9E1362-DE6C-4AD2-A2E1-0790BCE7A370}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +43,14 @@ Global
 		{4AE08538-CDA9-42DF-A94F-E57DC0F95EA9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4AE08538-CDA9-42DF-A94F-E57DC0F95EA9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4AE08538-CDA9-42DF-A94F-E57DC0F95EA9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6A0AE0DB-3472-4F5F-A649-EEE08C31CE7E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6A0AE0DB-3472-4F5F-A649-EEE08C31CE7E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6A0AE0DB-3472-4F5F-A649-EEE08C31CE7E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6A0AE0DB-3472-4F5F-A649-EEE08C31CE7E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2D9E1362-DE6C-4AD2-A2E1-0790BCE7A370}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2D9E1362-DE6C-4AD2-A2E1-0790BCE7A370}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2D9E1362-DE6C-4AD2-A2E1-0790BCE7A370}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2D9E1362-DE6C-4AD2-A2E1-0790BCE7A370}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
